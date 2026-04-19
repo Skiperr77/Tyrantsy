@@ -334,7 +334,12 @@ function handleClientMessage(data) {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if (data.sounds) data.sounds.forEach(s => playSound(s));
+    if (data.sounds) data.sounds.forEach(s => {
+      if (s.startsWith('card:')) {
+        const code = s.slice(5);
+        try { const a = new Audio('sounds/cards/'+code+'.wav'); a.onerror=()=>{const a2=new Audio('sounds/cards/'+code+'.mp3');a2.volume=0.5;a2.play().catch(()=>{});}; a.volume=0.5; a.play().catch(()=>{}); } catch(e){}
+      } else { playSound(s); }
+    });
     render();
   }
   if (data.type === 'start') {
@@ -2274,6 +2279,7 @@ function checkEndCondition() {
 
 function endTurn() {
   if (G.phase!=='play' || G.pending) return;
+  if (isOnline && G.currentPlayer !== myPlayerId) return;
   saveUndo();
   const p = cp(), pi = G.currentPlayer;
   // VP and influence from control tokens
@@ -3128,7 +3134,6 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('btn-ready').click();
     return;
   }
-  if (e.key === ' ' && !e.ctrlKey) { e.preventDefault(); if(!isOnline || G.currentPlayer===myPlayerId) endTurn(); }
   if (e.key === 'm' && !e.ctrlKey) { toggleMute(); const mi=document.getElementById('mute-ind'); if(mi)mi.remove(); if(soundMuted){const m=document.createElement('div');m.id='mute-ind';m.style.cssText='position:fixed;top:45px;right:8px;background:rgba(0,0,0,0.7);color:#e94560;padding:2px 8px;border-radius:6px;font-size:.75em;z-index:100';m.textContent='🔇';document.body.appendChild(m);} }
   if (e.key === 'z' && !e.ctrlKey) { e.preventDefault(); playAllCards(); }
   if (e.key >= '1' && e.key <= '9' && G?.pending?.type === 'choose_one') {
@@ -3222,9 +3227,12 @@ function revealMarketCard(idx) {
 
 // Play card-specific sound (by 3-letter code in name)
 function playCardSound(card) {
-  if (!card || !card.name || soundMuted) return;
+  if (!card || !card.name) return;
   const code = card.name.slice(0,3).trim();
   if (!code || code.length < 2) return;
+  // Queue for online sync
+  if (isOnline && isHost) window._soundQueue.push('card:' + code);
+  if (soundMuted) return;
   try {
     const audio = new Audio('sounds/cards/' + code + '.wav');
     audio.onerror = () => { const a2 = new Audio('sounds/cards/' + code + '.mp3'); a2.volume=0.5; a2.play().catch(()=>{}); };
