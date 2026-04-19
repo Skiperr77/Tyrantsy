@@ -600,7 +600,15 @@ document.addEventListener('keydown', e => {
 
   <div id="setup-screen">
     <h1>⚔️ Tyrants of the Underdark</h1>
-    <p>Prototyp lokalny (hot-seat)</p>
+    <p style="font-size:.85em;color:#888">Gra karciano-planszowa dla 2-4 graczy</p>
+    <details style="font-size:.75em;color:#aaa;max-width:400px;margin:4px 0;text-align:left">
+      <summary style="cursor:pointer;color:#b44dff">📋 Jak grać online?</summary>
+      <div style="padding:6px;line-height:1.6">
+        <b>Host:</b> Wpisz imię → Stwórz pokój → Skopiuj kod → Wyślij koledze → Wczytaj karty → Wybierz talie → Gotowy → Rozpocznij<br>
+        <b>Gracz:</b> Wpisz imię → Dołącz → Wklej kod → Połącz → Wczytaj te same karty → Gotowy → Czekaj na start<br>
+        <b>Lokalnie:</b> Kliknij Lokalny → Ustaw grę → Rozpocznij
+      </div>
+    </details>
     <button id="btn-load-map">📂 Wczytaj mapę</button>
     <button id="btn-load-cards">🃏 Wczytaj karty</button>
     <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
@@ -2930,7 +2938,19 @@ document.getElementById('btn-ready').addEventListener('click', () => {
   render();
 });
 
-document.getElementById('btn-end-turn').addEventListener('click', endTurn);
+document.getElementById('btn-end-turn').addEventListener('click', () => endTurn());
+// Disable end turn button when not your turn (online)
+const _origRender = render;
+const _patchRender = function() {
+  _origRender();
+  if (isOnline && G) {
+    const btn = document.getElementById('btn-end-turn');
+    const myTurn = G.currentPlayer === myPlayerId;
+    btn.disabled = !myTurn;
+    btn.style.opacity = myTurn ? '1' : '0.3';
+  }
+};
+render = _patchRender;
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
