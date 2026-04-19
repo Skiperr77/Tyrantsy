@@ -2279,7 +2279,6 @@ function checkEndCondition() {
 
 function endTurn() {
   if (G.phase!=='play' || G.pending) return;
-  if (isOnline && G.currentPlayer !== myPlayerId) return;
   saveUndo();
   const p = cp(), pi = G.currentPlayer;
   // VP and influence from control tokens
