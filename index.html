@@ -1159,6 +1159,15 @@ function applyEffects(effects) {
         render();
         return;
       }
+      case 'strength_if_player_trophies': {
+        const p = cp();
+        const playerTrophies = p.trophyHall.filter(t => t.color !== '#888').length;
+        if (playerTrophies >= (eff.threshold||5)) {
+          G.strength += eff.value;
+          logAction(`<span style="color:${p.color}">${p.name}</span>: +${eff.value} Siła (trofea graczy ≥${eff.threshold||5})`);
+        }
+        break;
+      }
       case 'influence_if_inner_circle':
         if (cp().innerCircle.length >= (eff.threshold||4)) {
           G.influence += eff.value;
@@ -1298,6 +1307,7 @@ function applyEffects(effects) {
       case 'deploy_white_from_trophy': G.pending = {type:'deploy_white_from_trophy', then:effects.slice(ei+1), remaining:eff.value, phase:'pick'}; return;
       case 'deploy_from_trophy': G.pending = {type:'deploy_from_trophy', then:effects.slice(ei+1), remaining:eff.value, phase:'pick_trophy'}; return;
       case 'recruit_madman_adjacent': G.pending = {type:'recruit_madman_adjacent', then:effects.slice(ei+1), remaining:eff.value}; return;
+      case 'return_enemy_spy': G.pending = {type:'return_enemy_spy', then:effects.slice(ei+1), remaining:eff.value}; return;
       case 'return_enemy': G.pending = {type:'return_enemy', then:effects.slice(ei+1), remaining:eff.value}; return;
       case 'return_spy_supplant_pz_control': G.pending = {type:'return_spy_supplant_single', then:[{type:'pz_per_control_tokens', value:1},...(effects.slice(ei+1))], phase:'pick_spy'}; return;
       case 'pz_per_control_tokens': {
@@ -1675,6 +1685,25 @@ function moveEnemyPlace(nodeId, slotIdx) {
     G.pending = null;
     if (thenEffects && thenEffects.length > 0) applyEffects(thenEffects);
   }
+  render();
+}
+
+// Return enemy spy only
+function returnEnemySpyOnly(nodeId, spyOwner) {
+  if (!G.pending || G.pending.type!=='return_enemy_spy') return;
+  const pi = G.currentPlayer, node = findNode(nodeId);
+  if (!node || node.nodeType !== 'city') return;
+  if (spyOwner === pi) return;
+  if (!playerHasPresence(pi, nodeId)) return;
+  const sIdx = node.spies.indexOf(spyOwner);
+  if (sIdx === -1) return;
+  saveUndo();
+  node.spies.splice(sIdx, 1);
+  G.players[spyOwner].spiesInBarracks++;
+  updateControl(nodeId);
+  logAction(`<span style="color:${cp().color}">${cp().name}</span>: wycofuje szpiega ${G.players[spyOwner].name}`);
+  G.pending.remaining--;
+  if (G.pending.remaining <= 0) resolvePending();
   render();
 }
 
@@ -2294,6 +2323,8 @@ function endTurn() {
     return;
   }
   G._promoteEndOfTurn = 0;
+  // Unhide all market cards at end of turn
+  G.market.forEach(c => delete c._hidden);
   // Return revealed devoured cards from market
   if (G._revealedDevoured) {
     G.market = G.market.filter(c => !c._fromDevoured);
@@ -2734,7 +2765,7 @@ function renderSVGMap(){
   saveMapState();
   document.querySelectorAll('.map-slot').forEach(el=>el.addEventListener('click',()=>handleSlotClick(el.dataset.node,parseInt(el.dataset.slot))));
   document.querySelectorAll('.map-area').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('.map-slot')||e.target.closest('.map-spy'))return;if(G.pending?.type==='place_spy')placeSpy(el.dataset.node);else if(G.pending?.type==='place_spy_bonus_if_enemy_spy')placeSpyBonusIfEnemySpy(el.dataset.node);else if(G.pending?.type==='place_spy_bonus_influence')placeSpyBonusInfluence(el.dataset.node);else if(G.pending?.type==='place_spy_then_supplant')placeSpyThenSupplant(el.dataset.node);else if(G.pending?.type==='place_spy_steal_trophies')placeSpyStealTrophies(el.dataset.node);else if(G.pending?.type==='place_spy_bonus_strength')placeSpyBonusStrength(el.dataset.node);}));
-  document.querySelectorAll('.map-spy').forEach(el=>el.addEventListener('click',()=>{if(G.pending?.type==='return_enemy'&&parseInt(el.dataset.spy)!==G.currentPlayer)returnEnemySpy(el.dataset.node,parseInt(el.dataset.spy));else if(G.pending?.type==='return_spy_supplant_single'&&parseInt(el.dataset.spy)===G.currentPlayer)returnSpySupplantSingle(el.dataset.node);else if(G.pending?.type==='return_spies_supplant'&&parseInt(el.dataset.spy)===G.currentPlayer)returnSpyForSupplant(el.dataset.node);else if(G.pending?.type==='return_own_spy'&&parseInt(el.dataset.spy)===G.currentPlayer)returnOwnSpy(el.dataset.node);else spendReturnSpy(el.dataset.node,parseInt(el.dataset.spy));}));
+  document.querySelectorAll('.map-spy').forEach(el=>el.addEventListener('click',()=>{if(G.pending?.type==='return_enemy_spy'&&parseInt(el.dataset.spy)!==G.currentPlayer)returnEnemySpyOnly(el.dataset.node,parseInt(el.dataset.spy));else if(G.pending?.type==='return_enemy'&&parseInt(el.dataset.spy)!==G.currentPlayer)returnEnemySpy(el.dataset.node,parseInt(el.dataset.spy));else if(G.pending?.type==='return_spy_supplant_single'&&parseInt(el.dataset.spy)===G.currentPlayer)returnSpySupplantSingle(el.dataset.node);else if(G.pending?.type==='return_spies_supplant'&&parseInt(el.dataset.spy)===G.currentPlayer)returnSpyForSupplant(el.dataset.node);else if(G.pending?.type==='return_own_spy'&&parseInt(el.dataset.spy)===G.currentPlayer)returnOwnSpy(el.dataset.node);else spendReturnSpy(el.dataset.node,parseInt(el.dataset.spy));}));
 }
 
 function slFill(s){return s.owner===null?'#252540':s.owner==='white'?'#999':COLORS[s.owner];}
@@ -3181,12 +3212,28 @@ function unlockAudio(){if(audioUnlocked)return;audioUnlocked=true;Object.values(
 document.addEventListener('click',unlockAudio,{once:true});
 document.addEventListener('keydown',unlockAudio,{once:true});
 function revealMarketCard(idx) {
-  if (G.market[idx]) {
-    delete G.market[idx]._hidden;
-    blockReset();
-    render();
-  }
+  if (!G.market[idx]) return;
+  if (isOnline && G.currentPlayer !== myPlayerId) return;
+  delete G.market[idx]._hidden;
+  blockReset();
+  render();
 }
+
+// Play card-specific sound (by 3-letter code in name)
+function playCardSound(card) {
+  if (!card || !card.name || soundMuted) return;
+  const code = card.name.slice(0,3).trim();
+  if (!code || code.length < 2) return;
+  try {
+    const audio = new Audio('sounds/cards/' + code + '.wav');
+    audio.onerror = () => { const a2 = new Audio('sounds/cards/' + code + '.mp3'); a2.volume=0.5; a2.play().catch(()=>{}); };
+    audio.volume = 0.5;
+    audio.play().catch(()=>{});
+  } catch(e) {}
+}
+
+// Preload all sounds
+Object.values(SOUNDS).forEach(s => { s.preload = 'auto'; s.load(); });
 
 function toggleMute() { soundMuted = !soundMuted; }
 
