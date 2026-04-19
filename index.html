@@ -348,13 +348,13 @@ function handleClientMessage(data) {
   }
 }
 
-let _soundQueue = [];
+window._soundQueue = window._soundQueue || [];
 function broadcastState() {
   const stateStr = JSON.stringify(G);
   connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, sounds: _soundQueue});
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, sounds: window._soundQueue});
   });
-  _soundQueue = [];
+  window._soundQueue = [];
 }
 
 // executeNetAction replaced by wrapper
@@ -3024,7 +3024,7 @@ const SOUNDS = {
   coin: new Audio('sounds/coin.mp3')
 };
 function playSound(name) {
-  if (isOnline && isHost) _soundQueue.push(name);
+  if (isOnline && isHost) window._soundQueue.push(name);
   if (soundMuted) return;
   const s = SOUNDS[name];
   if (!s) return;
@@ -3409,7 +3409,7 @@ function handleClientMessage(data) {
   }
 }
 
-let _soundQueue = [];
+window._soundQueue = window._soundQueue || [];
 function broadcastState() {
   const stateStr = JSON.stringify(G);
   connections.forEach(c => {
