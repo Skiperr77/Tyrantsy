@@ -232,7 +232,7 @@ function setLocalMode() {
 
 function hostGame() {
   isHost = true; isOnline = true;
-  peer = new Peer();
+  peer = new Peer(undefined, {host: '0.peerjs.com', port: 443, secure: true, debug: 1, config: {iceServers: [{urls: 'stun:stun.l.google.com:19302'}, {urls: 'stun:stun1.l.google.com:19302'}]}});
   document.getElementById('online-status').textContent = 'Łączenie...';
   peer.on('open', id => {
     const code = id.slice(-6).toUpperCase();
@@ -277,7 +277,7 @@ function joinGame() {
 function connectToHost() {
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
-  peer = new Peer();
+  peer = new Peer(undefined, {host: '0.peerjs.com', port: 443, secure: true, debug: 1, config: {iceServers: [{urls: 'stun:stun.l.google.com:19302'}, {urls: 'stun:stun1.l.google.com:19302'}]}});
   document.getElementById('online-status').textContent = 'Łączenie...';
   peer.on('open', () => {
     // Try to find host by code - PeerJS uses full ID, we need to match
@@ -3484,7 +3484,7 @@ function setLocalMode() {
 
 function hostGame() {
   isHost = true; isOnline = true;
-  peer = new Peer();
+  peer = new Peer(undefined, {host: '0.peerjs.com', port: 443, secure: true, debug: 1, config: {iceServers: [{urls: 'stun:stun.l.google.com:19302'}, {urls: 'stun:stun1.l.google.com:19302'}]}});
   document.getElementById('online-status').textContent = 'Łączenie...';
   peer.on('open', id => {
     const code = id.slice(-6).toUpperCase();
@@ -3529,7 +3529,7 @@ function joinGame() {
 function connectToHost() {
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
-  peer = new Peer();
+  peer = new Peer(undefined, {host: '0.peerjs.com', port: 443, secure: true, debug: 1, config: {iceServers: [{urls: 'stun:stun.l.google.com:19302'}, {urls: 'stun:stun1.l.google.com:19302'}]}});
   document.getElementById('online-status').textContent = 'Łączenie...';
   peer.on('open', () => {
     // Try to find host by code - PeerJS uses full ID, we need to match
