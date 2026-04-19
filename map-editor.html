@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Underdark Map Editor v2</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; display:flex; height:100vh; overflow:hidden; }
+#toolbar {
+  width:290px; padding:12px; background:#111128; overflow-y:auto; display:flex; flex-direction:column; gap:8px;
+  border-right:2px solid #333; flex-shrink:0;
+}
+#toolbar h2 { color:#b44dff; font-size:1.1em; }
+label { font-size:.82em; display:block; margin-top:3px; }
+input, select, textarea { padding:4px 6px; background:#1a1a2e; color:#eee; border:1px solid #333; border-radius:4px; font-size:.82em; }
+input[type=number] { width:55px; }
+input[type=checkbox] { width:auto; vertical-align:middle; }
+input[type=range] { width:100%; }
+button { padding:5px 12px; background:#b44dff; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:.82em; }
+button:hover { background:#9333ea; }
+button.danger { background:#e94560; }
+button.sm { padding:3px 8px; font-size:.75em; }
+.btn-row { display:flex; gap:5px; flex-wrap:wrap; }
+#canvas-wrap { flex:1; position:relative; overflow:hidden; }
+canvas { display:block; width:100%; height:100%; }
+#props { border-top:1px solid #333; padding-top:8px; }
+#props.hidden { display:none; }
+#props h3 { color:#b44dff; font-size:.95em; margin-bottom:4px; }
+.prop-grid { display:grid; grid-template-columns:auto 1fr; gap:3px 6px; align-items:center; font-size:.82em; }
+.prop-grid label { margin:0; }
+#help { font-size:.72em; color:#777; line-height:1.4; margin-top:auto; padding-top:8px; border-top:1px solid #222; }
+#mode-info { font-size:.85em; color:#ffd700; min-height:1.2em; }
+
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <h2>🗺️ Map Editor v2</h2>
+  <div class="btn-row">
+    <button onclick="addCity('main')">+ Główne Miasto</button>
+    <button onclick="addCity('start')">+ Miasto Startowe</button>
+    <button onclick="addCity('normal')">+ Miasto</button>
+  </div>
+  <div class="btn-row">
+    <button onclick="setMode('road')">🔗 Nowa droga</button>
+    <button onclick="setMode('select')">🖱️ Zaznacz</button>
+  </div>
+  <div class="btn-row">
+    <button onclick="exportData()">📋 Eksportuj</button>
+    <button onclick="importData()">📂 Importuj</button>
+  </div>
+  <div id="bg-controls">
+    <label>Tło: <input type="file" id="bg-file" accept="image/*" onchange="loadBg(this)"></label>
+    <label><input type="range" id="bg-opacity" min="0" max="100" value="30" oninput="draw()"> Przezroczystość</label>
+  </div>
+  <div id="props" class="hidden"></div>
+  <div id="mode-info"></div>
+  <div id="help">
+    <strong>Sterowanie:</strong><br>
+    • Przeciągnij miasto aby przesunąć<br>
+    • Kliknij aby edytować właściwości<br>
+    • Droga: kliknij 2 miasta, potem przeciągnij żółte punkty kontrolne<br>
+    • Scroll = zoom, środkowy przycisk = przesuń mapę<br>
+    • Delete = usuń zaznaczony element<br>
+    • Escape = anuluj tryb
+  </div>
+</div>
+<div id="canvas-wrap"><canvas id="c"></canvas></div>
+<script>
+// ============================================================
+// Map Editor v2 - Core Data & Drawing
+// ============================================================
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// City types: main (białe tło, bonusy), start (czarne tło, startowe), normal (zwykłe)
+// Road: Bézier curve with control points, spots placed along curve
+
+let cities = [];  // {id, name, type:'main'|'start'|'normal', pz, slots, whiteSlots, sector, controlBonus:{influence,pzPerTurn}, fullControlBonus:{influence,pzPerTurn}, x, y}
+let roads = [];   // {id, from, to, cp1:{x,y}, cp2:{x,y}, spots:[{white:bool}], spacing}
+let selected = null; // {kind:'city'|'road'|'spot'|'cp', idx, sub?}
+let mode = 'select';
+let roadFirst = null;
+let dragging = null;
+let dragOff = {x:0,y:0};
+let cam = {x:0, y:0, zoom:0.8};
+let panning = false, panStart = {x:0,y:0};
+let bgImg = null;
+let _id = 0;
+function uid() { return ++_id; }
+
+// --- CITY ---
+
+function addCity(type) {
+  const cx = (-cam.x + canvas.width/2) / cam.zoom;
+  const cy = (-cam.y + canvas.height/2) / cam.zoom;
+  const c = {
+    id: 'c'+uid(), name: type==='main'?'Główne Miasto':type==='start'?'Miasto Startowe':'Miasto',
+    type, pz: type==='main'?5:type==='start'?2:3,
+    slots: type==='main'?5:4, whiteSlots: type==='main'?2:1,
+    sector: 'center',
+    controlBonus: type==='main'?{influence:1,pzPerTurn:0}:{influence:0,pzPerTurn:0},
+    fullControlBonus: type==='main'?{influence:2,pzPerTurn:1}:{influence:0,pzPerTurn:0},
+    x: cx, y: cy
+  };
+  cities.push(c);
+  mode = 'select';
+  selected = {kind:'city', idx:cities.length-1};
+  showProps(); draw();
+}
+
+// --- ROAD ---
+
+function addRoad(fromIdx, toIdx) {
+  const a = cities[fromIdx], b = cities[toIdx];
+  const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+  const dx = b.x-a.x, dy = b.y-a.y;
+  // Default control points: slight curve
+  const off = Math.max(30, Math.hypot(dx,dy)*0.25);
+  roads.push({
+    id: 'r'+uid(), from: a.id, to: b.id,
+    cp1: {x: mx - dy*0.2, y: my + dx*0.2},
+    cp2: {x: mx + dy*0.2, y: my - dx*0.2},
+    spots: [{white:false}],
+    spacing: 40
+  });
+  mode = 'select'; roadFirst = null;
+  selected = {kind:'road', idx:roads.length-1};
+  showProps(); draw();
+}
+
+// --- BEZIER HELPERS ---
+
+function bezierPoint(t, p0, p1, p2, p3) {
+  const u=1-t;
+  return {
+    x: u*u*u*p0.x + 3*u*u*t*p1.x + 3*u*t*t*p2.x + t*t*t*p3.x,
+    y: u*u*u*p0.y + 3*u*u*t*p1.y + 3*u*t*t*p2.y + t*t*t*p3.y
+  };
+}
+
+function bezierLength(p0,p1,p2,p3, steps=50) {
+  let len=0, prev=p0;
+  for (let i=1;i<=steps;i++) {
+    const p=bezierPoint(i/steps,p0,p1,p2,p3);
+    len+=Math.hypot(p.x-prev.x,p.y-prev.y);
+    prev=p;
+  }
+  return len;
+}
+
+function bezierTAtDist(p0,p1,p2,p3, dist, steps=100) {
+  let len=0, prev=p0;
+  for (let i=1;i<=steps;i++) {
+    const t=i/steps, p=bezierPoint(t,p0,p1,p2,p3);
+    len+=Math.hypot(p.x-prev.x,p.y-prev.y);
+    if (len>=dist) return t;
+    prev=p;
+  }
+  return 1;
+}
+
+function getRoadEndpoints(road) {
+  const a=cities.find(c=>c.id===road.from), b=cities.find(c=>c.id===road.to);
+  if (!a||!b) return null;
+  return {p0:{x:a.x,y:a.y}, p1:road.cp1, p2:road.cp2, p3:{x:b.x,y:b.y}};
+}
+
+function getSpotPositions(road) {
+  const ep = getRoadEndpoints(road);
+  if (!ep) return [];
+  const {p0,p1,p2,p3} = ep;
+  const totalLen = bezierLength(p0,p1,p2,p3);
+  const n = road.spots.length;
+  if (n===0) return [];
+  const spacing = road.spacing || 40;
+  const totalSpotLen = (n-1)*spacing;
+  const startDist = (totalLen - totalSpotLen)/2;
+  const positions = [];
+  for (let i=0;i<n;i++) {
+    const d = startDist + i*spacing;
+    const t = bezierTAtDist(p0,p1,p2,p3, Math.max(0,Math.min(totalLen,d)));
+    positions.push(bezierPoint(t,p0,p1,p2,p3));
+  }
+  return positions;
+}
+
+// --- DRAWING ---
+
+function resize() {
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+  draw();
+}
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  ctx.translate(cam.x, cam.y);
+  ctx.scale(cam.zoom, cam.zoom);
+
+  // BG
+  if (bgImg) {
+    ctx.globalAlpha = parseInt(document.getElementById('bg-opacity').value)/100;
+    ctx.drawImage(bgImg, 0, 0, 1000, 1000);
+    ctx.globalAlpha = 1;
+  }
+
+  // Roads (curves)
+  roads.forEach((road, ri) => {
+    const ep = getRoadEndpoints(road);
+    if (!ep) return;
+    const {p0,p1,p2,p3} = ep;
+    const isSel = selected?.kind==='road' && selected.idx===ri;
+
+    // Curve
+    ctx.strokeStyle = isSel ? '#b44dff' : 'rgba(180,160,210,0.35)';
+    ctx.lineWidth = isSel ? 2.5 : 1.5;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(p0.x,p0.y);
+    ctx.bezierCurveTo(p1.x,p1.y,p2.x,p2.y,p3.x,p3.y);
+    ctx.stroke(); ctx.setLineDash([]);
+
+    // Control points (only when selected)
+    if (isSel) {
+      ctx.strokeStyle='rgba(255,200,0,0.5)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(p0.x,p0.y); ctx.lineTo(p1.x,p1.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p3.x,p3.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+      drawHandle(p1.x,p1.y,'#ff0',selected?.kind==='cp'&&selected.idx===ri&&selected.sub===1);
+      drawHandle(p2.x,p2.y,'#ff0',selected?.kind==='cp'&&selected.idx===ri&&selected.sub===2);
+    }
+
+    // Spots along curve
+    const positions = getSpotPositions(road);
+    positions.forEach((pos, si) => {
+      const spot = road.spots[si];
+      const spotSel = selected?.kind==='spot' && selected.idx===ri && selected.sub===si;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, 8, 0, Math.PI*2);
+      ctx.fillStyle = spot.white ? '#999' : '#1a1a2e';
+      ctx.fill();
+      ctx.strokeStyle = spotSel ? '#b44dff' : '#555';
+      ctx.lineWidth = spotSel ? 2.5 : 1.5;
+      ctx.stroke();
+      if (spot.white) {
+        ctx.fillStyle='#222'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center';
+        ctx.fillText('✕', pos.x, pos.y+3.5);
+      }
+    });
+  });
+
+  // Cities
+  cities.forEach((c, ci) => {
+    const isSel = selected?.kind==='city' && selected.idx===ci;
+    const w = Math.max(100, c.slots*22+30);
+    const h = 60;
+
+    // Background
+    let bgFill, borderCol;
+    if (c.type==='main') { bgFill='rgba(240,235,220,0.95)'; borderCol='rgba(200,180,140,0.8)'; }
+    else if (c.type==='start') { bgFill='rgba(15,10,25,0.95)'; borderCol='rgba(200,180,255,0.6)'; }
+    else { bgFill='rgba(30,25,50,0.9)'; borderCol='rgba(120,110,150,0.5)'; }
+
+    ctx.fillStyle = bgFill;
+    ctx.strokeStyle = isSel ? '#b44dff' : borderCol;
+    ctx.lineWidth = isSel ? 3 : 1.5;
+    roundRect(ctx, c.x-w/2, c.y-h/2, w, h, 6);
+
+    // Name
+    const textCol = c.type==='main' ? '#222' : '#ddd';
+    ctx.fillStyle = textCol; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+    const displayName = c.name.length>18 ? c.name.slice(0,17)+'…' : c.name;
+    ctx.fillText(displayName, c.x, c.y-12);
+
+    // PZ
+    ctx.fillStyle = c.type==='main'?'#8B6914':'#ffd700';
+    ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(c.pz, c.x+w/2-5, c.y-h/2+14);
+
+    // Type badge
+    const badges = {main:'★ Główne', start:'⬤ Start', normal:'◆'};
+    ctx.fillStyle = c.type==='main'?'#8B6914':c.type==='start'?'#b44dff':'#888';
+    ctx.font = '8px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(badges[c.type], c.x-w/2+5, c.y-h/2+12);
+
+    // Sector
+    const secCol = {left:'#4ecdc4', center:'#b44dff', right:'#ffe66d'}[c.sector]||'#888';
+    ctx.fillStyle = secCol; ctx.font = '7px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(c.sector, c.x-w/2+5, c.y+h/2-4);
+
+    // Slots
+    const slotY = c.y + 10;
+    for (let i=0;i<c.slots;i++) {
+      const sx = c.x - (c.slots-1)*11 + i*22;
+      ctx.beginPath(); ctx.arc(sx, slotY, 8, 0, Math.PI*2);
+      ctx.fillStyle = i<c.whiteSlots ? '#999' : (c.type==='main'?'#e8e0d0':'#1a1a2e');
+      ctx.fill();
+      ctx.strokeStyle = c.type==='main'?'#aaa':'#555'; ctx.lineWidth=1.5; ctx.stroke();
+      if (i<c.whiteSlots) {
+        ctx.fillStyle='#222'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center';
+        ctx.fillText('✕', sx, slotY+3.5);
+      }
+    }
+
+    // Control bonus indicator for main cities
+    if (c.type==='main' && (c.controlBonus?.influence || c.fullControlBonus?.pzPerTurn)) {
+      ctx.fillStyle='#8B6914'; ctx.font='7px sans-serif'; ctx.textAlign='right';
+      ctx.fillText(`ctrl:+${c.controlBonus.influence}💎 full:+${c.fullControlBonus.influence}💎+${c.fullControlBonus.pzPerTurn}PZ`, c.x+w/2-4, c.y+h/2-4);
+    }
+  });
+
+  ctx.restore();
+
+  // HUD
+  ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,250,22);
+  ctx.fillStyle='#eee'; ctx.font='11px sans-serif'; ctx.textAlign='left';
+  const modeLabels = {select:'🖱️ Zaznacz/Przeciągnij', road:'🔗 Kliknij 2 miasta'};
+  ctx.fillText(modeLabels[mode]||mode, 6, 15);
+  ctx.fillText(`Miasta: ${cities.length}  Drogi: ${roads.length}`, 160, 15);
+}
+
+function drawHandle(x,y,color,active) {
+  ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2);
+  ctx.fillStyle = active?'#fff':color; ctx.fill();
+  ctx.strokeStyle='#000'; ctx.lineWidth=1; ctx.stroke();
+}
+
+function roundRect(ctx,x,y,w,h,r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+}
+
+// ============================================================
+// Map Editor v2 - Interaction, Props, Import/Export
+// ============================================================
+
+// --- HIT TESTING ---
+
+function screenToWorld(sx,sy) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (sx - rect.left) * (canvas.width / rect.width);
+  const cy = (sy - rect.top) * (canvas.height / rect.height);
+  return {x:(cx-cam.x)/cam.zoom, y:(cy-cam.y)/cam.zoom};
+}
+
+function hitTest(wx,wy) {
+  // Check control points first (when road selected)
+  if (selected?.kind==='road') {
+    const r = roads[selected.idx];
+    if (Math.hypot(wx-r.cp1.x,wy-r.cp1.y)<8/cam.zoom) return {kind:'cp',idx:selected.idx,sub:1};
+    if (Math.hypot(wx-r.cp2.x,wy-r.cp2.y)<8/cam.zoom) return {kind:'cp',idx:selected.idx,sub:2};
+  }
+  // Spots
+  for (let ri=roads.length-1;ri>=0;ri--) {
+    const positions = getSpotPositions(roads[ri]);
+    for (let si=positions.length-1;si>=0;si--) {
+      if (Math.hypot(wx-positions[si].x,wy-positions[si].y)<10/cam.zoom) return {kind:'spot',idx:ri,sub:si};
+    }
+  }
+  // Cities
+  for (let i=cities.length-1;i>=0;i--) {
+    const c=cities[i], w=Math.max(100,c.slots*22+30), h=60;
+    if (wx>=c.x-w/2&&wx<=c.x+w/2&&wy>=c.y-h/2&&wy<=c.y+h/2) return {kind:'city',idx:i};
+  }
+  // Road midpoints
+  for (let ri=roads.length-1;ri>=0;ri--) {
+    const ep=getRoadEndpoints(roads[ri]); if (!ep) continue;
+    const mid=bezierPoint(0.5,ep.p0,ep.p1,ep.p2,ep.p3);
+    if (Math.hypot(wx-mid.x,wy-mid.y)<15/cam.zoom) return {kind:'road',idx:ri};
+  }
+  return null;
+}
+
+// --- EVENTS ---
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button===1) { panning=true; panStart={x:e.clientX-cam.x,y:e.clientY-cam.y}; return; }
+  if (e.button!==0) return;
+  const w = screenToWorld(e.clientX,e.clientY);
+  const hit = hitTest(w.x,w.y);
+
+  if (mode==='road') {
+    // In road mode, only hit cities
+    let cityHit = null;
+    for (let i=cities.length-1;i>=0;i--) {
+      const c=cities[i], cw=Math.max(100,c.slots*22+30), ch=60;
+      if (w.x>=c.x-cw/2&&w.x<=c.x+cw/2&&w.y>=c.y-ch/2&&w.y<=c.y+ch/2) { cityHit=i; break; }
+    }
+    if (cityHit!==null) {
+      if (roadFirst===null) { roadFirst=cityHit; updateModeInfo(`Miasto 1: ${cities[cityHit].name} — kliknij drugie`); draw(); }
+      else if (cityHit!==roadFirst) {
+        const exists = roads.some(r=>(r.from===cities[roadFirst].id&&r.to===cities[cityHit].id)||(r.from===cities[cityHit].id&&r.to===cities[roadFirst].id));
+        if (!exists) addRoad(roadFirst, cityHit);
+        roadFirst=null; updateModeInfo('');
+      }
+    }
+    return;
+  }
+
+  if (hit) {
+    selected = hit;
+    if (hit.kind==='city') { dragging={kind:'city',idx:hit.idx}; dragOff={x:w.x-cities[hit.idx].x,y:w.y-cities[hit.idx].y}; }
+    else if (hit.kind==='cp') { dragging=hit; }
+    else if (hit.kind==='spot') { /* just select */ }
+    showProps(); draw();
+  } else {
+    selected=null; document.getElementById('props').classList.add('hidden'); draw();
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (panning) { cam.x=e.clientX-panStart.x; cam.y=e.clientY-panStart.y; draw(); return; }
+  if (!dragging) return;
+  const w = screenToWorld(e.clientX,e.clientY);
+  if (dragging.kind==='city') {
+    cities[dragging.idx].x=w.x-dragOff.x; cities[dragging.idx].y=w.y-dragOff.y;
+  } else if (dragging.kind==='cp') {
+    const r=roads[dragging.idx];
+    if (dragging.sub===1) { r.cp1.x=w.x; r.cp1.y=w.y; }
+    else { r.cp2.x=w.x; r.cp2.y=w.y; }
+  }
+  draw();
+});
+
+canvas.addEventListener('mouseup', () => { panning=false; dragging=null; });
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const z=cam.zoom*(e.deltaY<0?1.1:0.9);
+  cam.zoom=Math.max(0.15,Math.min(5,z)); draw();
+}, {passive:false});
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') { mode='select'; roadFirst=null; selected=null; document.getElementById('props').classList.add('hidden'); updateModeInfo(''); draw(); }
+  if (e.key==='Delete'&&selected) deleteSelected();
+});
+
+function setMode(m) { mode=m; roadFirst=null; selected=null; document.getElementById('props').classList.add('hidden'); updateModeInfo(m==='road'?'Kliknij pierwsze miasto...':''); draw(); }
+function updateModeInfo(txt) { document.getElementById('mode-info').textContent=txt; }
+
+function deleteSelected() {
+  if (!selected) return;
+  if (selected.kind==='city') {
+    const c=cities[selected.idx];
+    roads=roads.filter(r=>r.from!==c.id&&r.to!==c.id);
+    cities.splice(selected.idx,1);
+  } else if (selected.kind==='road') {
+    roads.splice(selected.idx,1);
+  } else if (selected.kind==='spot') {
+    roads[selected.idx].spots.splice(selected.sub,1);
+  }
+  selected=null; document.getElementById('props').classList.add('hidden'); draw();
+}
+
+// --- PROPERTIES PANEL ---
+
+function showProps() {
+  const el=document.getElementById('props');
+  if (!selected) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+
+  if (selected.kind==='city') {
+    const c=cities[selected.idx];
+    el.innerHTML = `<h3>${{main:'★ Główne Miasto',start:'⬤ Miasto Startowe',normal:'◆ Miasto'}[c.type]}</h3>
+    <div class="prop-grid">
+      <label>Nazwa:</label><input value="${c.name}" onchange="updC('name',this.value)">
+      <label>Typ:</label><select onchange="updC('type',this.value)">
+        <option value="main" ${c.type==='main'?'selected':''}>Główne</option>
+        <option value="start" ${c.type==='start'?'selected':''}>Startowe</option>
+        <option value="normal" ${c.type==='normal'?'selected':''}>Zwykłe</option></select>
+      <label>PZ:</label><input type="number" value="${c.pz}" min="0" max="10" onchange="updC('pz',+this.value)">
+      <label>Sloty:</label><input type="number" value="${c.slots}" min="1" max="8" onchange="updC('slots',+this.value)">
+      <label>Białe:</label><input type="number" value="${c.whiteSlots}" min="0" max="8" onchange="updC('whiteSlots',Math.min(+this.value,selCity().slots))">
+      <label>Sektor:</label><select onchange="updC('sector',this.value)">
+        <option value="left" ${c.sector==='left'?'selected':''}>Lewy</option>
+        <option value="center" ${c.sector==='center'?'selected':''}>Centrum</option>
+        <option value="right" ${c.sector==='right'?'selected':''}>Prawy</option></select>
+    </div>
+    ${c.type==='main'?`<div class="prop-grid" style="margin-top:6px">
+      <label>Kontrola +💎:</label><input type="number" value="${c.controlBonus?.influence||0}" min="0" onchange="updCB('controlBonus','influence',+this.value)">
+      <label>Pełna +💎:</label><input type="number" value="${c.fullControlBonus?.influence||0}" min="0" onchange="updCB('fullControlBonus','influence',+this.value)">
+      <label>Pełna +PZ/turę:</label><input type="number" value="${c.fullControlBonus?.pzPerTurn||0}" min="0" onchange="updCB('fullControlBonus','pzPerTurn',+this.value)">
+    </div>`:''}
+    <button class="danger" style="margin-top:6px" onclick="deleteSelected()">🗑️ Usuń miasto</button>`;
+  }
+  else if (selected.kind==='road') {
+    const r=roads[selected.idx];
+    el.innerHTML = `<h3>🔗 Droga</h3>
+    <div class="prop-grid">
+      <label>Pola:</label><div><input type="number" value="${r.spots.length}" min="0" max="10" onchange="setRoadSpots(+this.value)"> szt.</div>
+      <label>Odstęp:</label><input type="number" value="${r.spacing||40}" min="15" max="120" onchange="updR('spacing',+this.value)">
+    </div>
+    <div style="margin-top:4px;font-size:.8em">
+      ${r.spots.map((s,i)=>`<label><input type="checkbox" ${s.white?'checked':''} onchange="toggleSpotWhite(${i},this.checked)"> Pole ${i+1} biały wróg</label>`).join('')}
+    </div>
+    <p style="font-size:.75em;color:#888;margin-top:4px">Przeciągnij żółte punkty kontrolne aby wygiąć drogę</p>
+    <button class="danger" style="margin-top:6px" onclick="deleteSelected()">🗑️ Usuń drogę</button>`;
+  }
+  else if (selected.kind==='spot') {
+    const r=roads[selected.idx], s=r.spots[selected.sub];
+    el.innerHTML = `<h3>⬤ Pole na drodze #${selected.sub+1}</h3>
+    <label><input type="checkbox" ${s.white?'checked':''} onchange="toggleSpotWhite(${selected.sub},this.checked)"> Biały wróg</label>
+    <button class="danger sm" style="margin-top:4px" onclick="deleteSelected()">🗑️ Usuń pole</button>`;
+  }
+  else if (selected.kind==='cp') {
+    el.innerHTML = `<h3>🟡 Punkt kontrolny</h3><p style="font-size:.8em;color:#aaa">Przeciągnij aby wygiąć drogę</p>`;
+  }
+}
+
+function selCity() { return selected?.kind==='city'?cities[selected.idx]:null; }
+function updC(k,v) { const c=selCity(); if(c){c[k]=v; showProps(); draw();} }
+function updCB(bonus,k,v) { const c=selCity(); if(c){if(!c[bonus])c[bonus]={influence:0,pzPerTurn:0}; c[bonus][k]=v; draw();} }
+function updR(k,v) { if(selected?.kind==='road'){roads[selected.idx][k]=v; draw();} }
+function setRoadSpots(n) {
+  if(selected?.kind!=='road') return;
+  const r=roads[selected.idx];
+  while(r.spots.length<n) r.spots.push({white:false});
+  while(r.spots.length>n) r.spots.pop();
+  showProps(); draw();
+}
+function toggleSpotWhite(si,val) {
+  const ri = selected?.kind==='road'?selected.idx : selected?.kind==='spot'?selected.idx : -1;
+  if(ri>=0 && roads[ri].spots[si]) { roads[ri].spots[si].white=val; draw(); }
+}
+
+// --- BG ---
+
+function loadBg(input) {
+  const file=input.files[0]; if(!file) return;
+  const img=new Image();
+  img.onload=()=>{bgImg=img;draw();}; img.src=URL.createObjectURL(file);
+}
+
+// --- EXPORT ---
+
+function exportData() {
+  let js = '// Generated by Map Editor v2\n\nconst MAP_AREAS = [\n';
+  cities.forEach(c => {
+    const ws = Array.from({length:c.whiteSlots},(_,i)=>i);
+    js += `  { id:'${c.id}', name:'${c.name}', type:'${c.type}', pz:${c.pz}, slots:${c.slots}, whiteSlots:[${ws}], starting:${c.type==='start'}, sector:'${c.sector}', hasControlToken:${c.type==='main'}`;
+    if (c.type==='main') js += `, controlBonus:${JSON.stringify(c.controlBonus)}, fullControlBonus:${JSON.stringify(c.fullControlBonus)}`;
+    js += `, x:${Math.round(c.x/10)}, y:${Math.round(c.y/10)} },\n`;
+  });
+  js += '];\n\nconst MAP_ROADS = [\n';
+  roads.forEach(r => {
+    const ws = r.spots.map((s,i)=>s.white?i:-1).filter(i=>i>=0);
+    js += `  { id:'${r.id}', connects:['${r.from}','${r.to}'], slots:${r.spots.length}, whiteSlots:[${ws}], sector:'center'`;
+    js += `, cp1:{x:${Math.round(r.cp1.x/10)},y:${Math.round(r.cp1.y/10)}}, cp2:{x:${Math.round(r.cp2.x/10)},y:${Math.round(r.cp2.y/10)}}, spacing:${r.spacing||40} },\n`;
+  });
+  js += '];\n';
+
+  // Also save editor state (full precision) as JSON
+  const editorState = JSON.stringify({cities,roads},null,2);
+
+  const blob = new Blob([js+'\n\n/* EDITOR STATE:\n'+editorState+'\n*/'], {type:'text/javascript'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='map-data.js'; a.click();
+  navigator.clipboard.writeText(js).then(()=>alert('Plik pobrany + JS skopiowany do schowka!')).catch(()=>alert('Plik pobrany!'));
+}
+
+function importData() {
+  const input=document.createElement('input'); input.type='file'; input.accept='.json,.js';
+  input.onchange=()=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try {
+        let text=reader.result;
+        // Try editor state JSON first
+        const stateMatch = text.match(/EDITOR STATE:\n([\s\S]*?)\n\*\//);
+        if (stateMatch) {
+          const data=JSON.parse(stateMatch[1]);
+          cities=data.cities||[]; roads=data.roads||[];
+        } else {
+          // Try raw JSON
+          const data=JSON.parse(text);
+          if (data.cities) { cities=data.cities; roads=data.roads||[]; }
+        }
+        selected=null; document.getElementById('props').classList.add('hidden');
+        centerCamera(); draw();
+        alert(`Wczytano ${cities.length} miast i ${roads.length} dróg`);
+      } catch(e) { alert('Błąd: '+e.message); }
+    };
+    reader.readAsText(input.files[0]);
+  };
+  input.click();
+}
+
+function centerCamera() {
+  if (!cities.length) return;
+  const ax=cities.reduce((s,c)=>s+c.x,0)/cities.length;
+  const ay=cities.reduce((s,c)=>s+c.y,0)/cities.length;
+  cam.x=canvas.width/2-ax*cam.zoom; cam.y=canvas.height/2-ay*cam.zoom;
+}
+
+// --- INIT ---
+
+window.addEventListener('resize', resize);
+resize();
+
+</script>
+</body>
+</html>

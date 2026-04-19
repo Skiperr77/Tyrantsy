@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card Editor - Tyrants of the Underdark</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0d0d1a;color:#eee;display:flex;height:100vh;overflow:hidden}
+#sidebar{width:340px;padding:12px;background:#111128;overflow-y:auto;border-right:2px solid #333;display:flex;flex-direction:column;gap:8px}
+#sidebar h2{color:#b44dff;font-size:1.1em}
+label{font-size:.82em;display:block;margin-top:3px}
+input,select,textarea{width:100%;padding:4px 6px;background:#1a1a2e;color:#eee;border:1px solid #333;border-radius:4px;font-size:.82em}
+input[type=number]{width:60px}
+input[type=file]{font-size:.75em}
+textarea{height:50px;resize:vertical}
+button{padding:6px 14px;background:#b44dff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82em}
+button:hover{background:#9333ea}
+button.danger{background:#e94560}
+button.sm{padding:3px 8px;font-size:.75em}
+.btn-row{display:flex;gap:5px;flex-wrap:wrap}
+.effect-row{display:flex;gap:4px;align-items:center;margin:2px 0}
+.effect-row select{width:auto;flex:2;min-width:0} .effect-row input{width:45px;flex:0}
+.effect-row button{flex-shrink:0}
+
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#card-list-bar{display:flex;gap:4px;padding:8px;background:#0f0f22;border-bottom:1px solid #333;overflow-x:auto;flex-shrink:0}
+.card-thumb{width:60px;height:84px;border-radius:4px;border:2px solid #333;cursor:pointer;overflow:hidden;flex-shrink:0;position:relative;background:#1a1a2e}
+.card-thumb.active{border-color:#b44dff}
+.card-thumb img{width:100%;height:100%;object-fit:cover}
+.card-thumb .thumb-label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.7);font-size:.5em;padding:1px 2px;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#btn-add-card{width:60px;height:84px;border-radius:4px;border:2px dashed #555;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.5em;color:#555;flex-shrink:0}
+#btn-add-card:hover{border-color:#b44dff;color:#b44dff}
+
+#preview-area{flex:1;display:flex;align-items:center;justify-content:center;padding:20px}
+#preview-card{width:280px;height:400px;border-radius:12px;border:2px solid #444;overflow:hidden;position:relative;background:#16213e}
+#preview-card img{width:100%;height:100%;object-fit:cover}
+#preview-card .preview-overlay{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.6);padding:6px 8px;font-size:.8em}
+#preview-no-img{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#444;gap:8px}
+
+#deck-section{margin-top:auto;border-top:1px solid #333;padding-top:8px}
+.deck-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.75em;margin:2px;cursor:pointer;border:1px solid #444}
+.deck-tag.active{background:#b44dff;border-color:#b44dff}
+#stats{font-size:.75em;color:#888;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <h2>🃏 Card Editor</h2>
+  <div class="btn-row">
+    <button onclick="exportCards()">📋 Eksportuj</button>
+    <button onclick="importCards()">📂 Importuj</button>
+    <button onclick="exportWithImages()">🖼️ Eksport z grafikami</button>
+  </div>
+
+  <div id="card-form">
+    <label>Nazwa: <input id="f-name" oninput="updateCard()"></label>
+    <label>Grafika: <input type="file" id="f-img" accept="image/*" onchange="loadCardImage(this)"></label>
+    <label>Koszt (Wpływ): <input id="f-cost" type="number" min="0" max="15" oninput="updateCard()"></label>
+
+    <label>Aspekt:
+    <select id="f-aspect" onchange="updateCard()">
+      <option value="">—</option>
+      <option value="Ambicja">Ambicja</option>
+      <option value="Podbój">Podbój</option>
+      <option value="Złośliwość">Złośliwość</option>
+      <option value="Podstęp">Podstęp</option>
+      <option value="Posłuszeństwo">Posłuszeństwo</option>
+    </select></label>
+
+    <label>PZ w talii: <input id="f-deckpz" type="number" min="0" max="10" oninput="updateCard()"></label>
+    <label>PZ wew. kręgu: <input id="f-innerpz" type="number" min="0" max="10" oninput="updateCard()"></label>
+    <label>Kopie w talii: <input id="f-copies" type="number" min="1" max="10" value="1" oninput="updateCard()"></label>
+
+    <label>Efekty:</label>
+    <div id="effects-list"></div>
+    <button class="sm" onclick="addEffect()">+ Efekt</button> <button class="sm" onclick="addEffect('choose_one')" style="background:#2a1a4e;border:1px solid #b44dff">+ Wybierz raz</button>
+
+    <label>Opis (tekst na karcie): <textarea id="f-desc" oninput="updateCard()"></textarea></label>
+
+    <div id="base-cards-section" style="border-top:1px solid #333;padding-top:8px;margin-top:8px">
+      <h3 style="color:#ffd700;font-size:.9em">📌 Karty podstawowe</h3>
+      <p style="font-size:.7em;color:#888;margin-bottom:4px">Te karty są zawsze w grze. Dodaj grafiki:</p>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="font-size:.75em">Szlachcic (7 szt.): <input type="file" accept="image/*" onchange="setBaseImage('noble',event)"></div>
+        <div style="font-size:.75em">Żołnierz (3 szt.): <input type="file" accept="image/*" onchange="setBaseImage('soldier',event)"></div>
+        <div style="font-size:.75em">Strażnik Domu (15 szt.): <input type="file" accept="image/*" onchange="setBaseImage('guard',event)"></div>
+        <div style="font-size:.75em">Kapłanka Lolth (15 szt.): <input type="file" accept="image/*" onchange="setBaseImage('lolth',event)"></div>
+        <div style="font-size:.75em">Szalony wyrzutek (30 szt.): <input type="file" accept="image/*" onchange="setBaseImage('madman',event)"></div>
+      </div>
+      <div id="base-cards-preview" style="display:flex;gap:4px;margin-top:4px"></div>
+    </div>
+
+    <div id="deck-section">
+      <label>Należy do talii:</label>
+      <div id="deck-tags"></div>
+      <div style="display:flex;gap:4px;margin-top:4px">
+        <input id="new-deck-name" placeholder="Nowa talia...">
+        <button class="sm" onclick="addDeck()">+</button>
+      </div>
+    </div>
+
+    <button class="danger" style="margin-top:8px" onclick="deleteCard()">🗑️ Usuń kartę</button>
+  </div>
+
+  <div id="stats"></div>
+</div>
+
+<div id="main">
+  <div id="card-list-bar">
+    <div id="btn-add-card" onclick="addCard()">+</div>
+  </div>
+  <div id="preview-area">
+    <div id="preview-card">
+      <div id="preview-no-img">🃏<br>Wybierz lub dodaj kartę</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const EFFECT_TYPES = [
+  {value:'',label:'── Podstawowe ──',disabled:true},
+  {value:'strength',label:'Siła (+⚔️)'},
+  {value:'influence',label:'Wpływ (+💎)'},
+  {value:'draw',label:'Dobierz karty'},
+  {value:'deploy',label:'Wyślij oddział'},
+  {value:'deploy_from_trophy',label:'Wyślij z sali trofeów'},
+  {value:'',label:'── Awanse ──',disabled:true},
+  {value:'promote',label:'Awansuj kartę (z zagranych)'},
+  {value:'promote_end_of_turn',label:'Awansuj pod koniec tury'},
+  {value:'promote_top_deck',label:'Awansuj wierzchnią z talii'},
+  {value:'dump_deck_promote_discard',label:'Talia→odrzucone, awansuj z odrz.'},
+  {value:'',label:'── Koszty (→) ──',disabled:true},
+  {value:'devour_hand',label:'→ Pożryj kartę z ręki (koszt)'},
+  {value:'devour_inner_circle',label:'→ Pożryj z wew. kręgu (koszt)'},
+  {value:'',label:'── Likwidacja / Wyparcie ──',disabled:true},
+  {value:'assassinate',label:'Zlikwiduj oddział'},
+  {value:'assassinate_at_spy',label:'Zlikwiduj w obszarze szpiega'},
+  {value:'assassinate_white',label:'Zlikwiduj biały oddział'},
+  {value:'supplant',label:'Wyprzyj oddział (przyległy)'},
+  {value:'supplant_white',label:'Wyprzyj biały (dowolny)'},
+  {value:'supplant_white_presence',label:'Wyprzyj biały (przyległy)'},
+  {value:'move_enemy',label:'Przesuń wrogi oddział'},
+  {value:'',label:'── Pożarcie ──',disabled:true},
+  {value:'devour',label:'Pożryj kartę'},
+  {value:'devour_market_replace',label:'Pożryj z rynku (zastąp sobą)'},
+  {value:'',label:'── Szpiedzy ──',disabled:true},
+  {value:'place_spy',label:'Umieść szpiega'},
+  {value:'place_spy_bonus_strength',label:'Umieść szpiega (+1⚔️ jeśli wróg)'},
+  {value:'return_own_spy',label:'Wycofaj swojego szpiega'},
+  {value:'return_spy_supplant_single',label:'Wycofaj szpiega → wyprzyj tam'},
+  {value:'return_spies_supplant',label:'Wycofaj szpiegów → wyprzyj (wiele)'},
+  {value:'',label:'── Wycofanie ──',disabled:true},
+  {value:'return_troop',label:'Wycofaj oddział wroga'},
+  {value:'return_enemy',label:'Wycofaj oddział/szpiega wroga'},
+  {value:'',label:'── Wyrzutki ──',disabled:true},
+  {value:'recruit_madman',label:'Werbuj Wyrzutka (wybierz gracza)'},
+  {value:'recruit_madman_all',label:'Wszyscy werbują Wyrzutka'},
+  {value:'recruit_madman_adjacent',label:'Werbuj Wyrzutka (przyległy)'},
+  {value:'recruit_madman_self',label:'Werbuj Wyrzutka (sam)'},
+  {value:'',label:'── Inne ──',disabled:true},
+  {value:'influence_if_inner_circle',label:'+Wpływ jeśli wew.krąg ≥4'},
+];
+
+let cards = [];
+let decks = ['Drowy','Smoki'];
+let selectedIdx = -1;
+
+function addCard() {
+  cards.push({
+    id:'card_'+(Date.now()%100000), name:'Nowa karta', cost:0, aspect:'',
+    deckPZ:0, innerPZ:0, copies:1, effects:[], desc:'', deck:'Drowy', image:null
+  });
+  selectedIdx = cards.length-1;
+  renderAll();
+}
+
+function deleteCard() {
+  if (selectedIdx<0) return;
+  cards.splice(selectedIdx,1);
+  selectedIdx = Math.min(selectedIdx, cards.length-1);
+  renderAll();
+}
+
+function selectCard(i) {
+  selectedIdx = i;
+  renderAll();
+}
+
+function cur() { return selectedIdx>=0 ? cards[selectedIdx] : null; }
+
+function updateCard() {
+  const c = cur(); if (!c) return;
+  c.name = document.getElementById('f-name').value;
+  c.cost = parseInt(document.getElementById('f-cost').value)||0;
+  c.aspect = document.getElementById('f-aspect').value;
+  c.deckPZ = parseInt(document.getElementById('f-deckpz').value)||0;
+  c.innerPZ = parseInt(document.getElementById('f-innerpz').value)||0;
+  c.copies = parseInt(document.getElementById('f-copies').value)||1;
+  c.desc = document.getElementById('f-desc').value;
+  renderThumbList();
+  renderPreview();
+  renderStats();
+}
+
+// Choose one option helpers
+function updateChooseValue(effectIdx, val) {
+  const c = cur(); if (!c) return;
+  c.effects[effectIdx].value = val;
+}
+
+function addChooseOption(effectIdx) {
+  const c = cur(); if (!c) return;
+  if (!c.effects[effectIdx].options) c.effects[effectIdx].options = [];
+  c.effects[effectIdx].options.push({label:'Opcja', effects:[{type:'strength',value:1}]});
+  renderEffects();
+}
+function removeChooseOption(effectIdx, optIdx) {
+  const c = cur(); if (!c) return;
+  c.effects[effectIdx].options.splice(optIdx, 1);
+  renderEffects();
+}
+function updateChooseOption(effectIdx, optIdx, key, val) {
+  const c = cur(); if (!c) return;
+  c.effects[effectIdx].options[optIdx][key] = val;
+}
+function addChooseOptionEffect(effectIdx, optIdx) {
+  const c = cur(); if (!c) return;
+  c.effects[effectIdx].options[optIdx].effects.push({type:'strength',value:1});
+  renderEffects();
+}
+function removeChooseOptionEffect(effectIdx, optIdx, effIdx) {
+  const c = cur(); if (!c) return;
+  c.effects[effectIdx].options[optIdx].effects.splice(effIdx, 1);
+  renderEffects();
+}
+function updateChooseOptionEffect(effectIdx, optIdx, effIdx, key, val) {
+  const c = cur(); if (!c) return;
+  c.effects[effectIdx].options[optIdx].effects[effIdx][key] = val;
+}
+
+function updateEffects() {
+  const c = cur(); if (!c) return;
+  // Preserve choose_one effects (they are managed separately)
+  const chooseOnes = c.effects.filter(e => e.type === 'choose_one');
+  c.effects = [];
+  document.querySelectorAll('#effects-list > .effect-row').forEach(row => {
+    const sel = row.querySelector('select');
+    const inp = row.querySelector('input[type=number]');
+    if (sel && sel.value) c.effects.push({type: sel.value, value: parseInt(inp?.value)||1});
+  });
+  // Re-add choose_ones in their original positions
+  chooseOnes.forEach(co => c.effects.push(co));
+  // Auto-generate desc from effects
+  if (!document.getElementById('f-desc').value.trim()) {
+    c.desc = c.effects.map(e => {
+      const et = EFFECT_TYPES.find(t=>t.value===e.type);
+      return et ? `${et.label.replace(/[()]/g,'')} ${e.value}` : '';
+    }).filter(Boolean).join(', ');
+    document.getElementById('f-desc').value = c.desc;
+  }
+  renderStats();
+}
+
+function addEffect(type) {
+  const c = cur(); if (!c) return;
+  if (type === 'choose_one') {
+    c.effects.push({type:'choose_one', options:[
+      {label:'Opcja A', effects:[{type:'strength',value:1}]},
+      {label:'Opcja B', effects:[{type:'influence',value:1}]}
+    ]});
+  } else {
+    c.effects.push({type:'strength', value:1});
+  }
+  renderEffects();
+}
+
+function removeEffect(i) {
+  const c = cur(); if (!c) return;
+  c.effects.splice(i,1);
+  renderEffects();
+  updateEffects();
+}
+
+function loadCardImage(input) {
+  const c = cur(); if (!c || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = () => { c.image = reader.result; renderPreview(); renderThumbList(); };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// --- DECKS ---
+function addDeck() {
+  const name = document.getElementById('new-deck-name').value.trim();
+  if (name && !decks.includes(name)) { decks.push(name); renderDeckTags(); }
+  document.getElementById('new-deck-name').value = '';
+}
+
+function setDeck(name) {
+  const c = cur(); if (!c) return;
+  c.deck = name;
+  renderDeckTags();
+}
+
+// --- RENDER ---
+function renderAll() {
+  renderThumbList();
+  renderForm();
+  renderPreview();
+  renderStats();
+}
+
+function renderThumbList() {
+  const bar = document.getElementById('card-list-bar');
+  bar.innerHTML = cards.map((c,i) =>
+    `<div class="card-thumb ${i===selectedIdx?'active':''}" onclick="selectCard(${i})">
+      ${c.image ? `<img src="${c.image}">` : ''}
+      <div class="thumb-label">${c.name}</div>
+    </div>`
+  ).join('') + `<div id="btn-add-card" onclick="addCard()">+</div>`;
+}
+
+function renderForm() {
+  const c = cur();
+  if (!c) { document.getElementById('card-form').style.opacity='.3'; return; }
+  document.getElementById('card-form').style.opacity='1';
+  document.getElementById('f-name').value = c.name;
+  document.getElementById('f-cost').value = c.cost;
+  document.getElementById('f-aspect').value = c.aspect;
+  document.getElementById('f-deckpz').value = c.deckPZ;
+  document.getElementById('f-innerpz').value = c.innerPZ;
+  document.getElementById('f-copies').value = c.copies;
+  document.getElementById('f-desc').value = c.desc;
+  renderEffects();
+  renderDeckTags();
+}
+
+function renderEffects() {
+  const c = cur(); if (!c) return;
+  document.getElementById('effects-list').innerHTML = c.effects.map((e,i) => {
+    if (e.type === 'choose_one') {
+      let optHtml = (e.options||[]).map((opt,oi) =>
+        `<div style="margin:4px 0 4px 8px;padding:4px;border:1px solid #444;border-radius:4px">
+          <div style="display:flex;gap:4px;align-items:center">
+            <input value="${opt.label||''}" placeholder="Nazwa opcji" style="flex:1" onchange="updateChooseOption(${i},${oi},'label',this.value)">
+            <button class="sm danger" onclick="removeChooseOption(${i},${oi})">✕</button>
+          </div>
+          <div style="margin-top:2px;font-size:.9em;color:#888">Efekty opcji:</div>
+          ${(opt.effects||[]).map((oe,oei) =>
+            `<div class="effect-row">
+              <select onchange="updateChooseOptionEffect(${i},${oi},${oei},'type',this.value)">${EFFECT_TYPES.filter(t=>t.value!=='choose_one').map(t=>`<option value="${t.value}" ${t.value===oe.type?'selected':''} ${t.disabled?'disabled style="color:#b44dff;font-weight:bold"':''}>${t.label}</option>`).join('')}</select>
+              <input type="number" value="${oe.value||1}" min="1" max="10" style="width:45px" onchange="updateChooseOptionEffect(${i},${oi},${oei},'value',+this.value)">
+              <button class="sm danger" onclick="removeChooseOptionEffect(${i},${oi},${oei})">✕</button>
+            </div>`
+          ).join('')}
+          <button class="sm" onclick="addChooseOptionEffect(${i},${oi})">+ Efekt opcji</button>
+        </div>`
+      ).join('');
+      return `<div style="border:1px solid #b44dff;border-radius:6px;padding:4px;margin:4px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:#b44dff;font-size:.85em;font-weight:bold">⚡ Wybierz</span> <input type="number" value="${e.value||1}" min="1" max="10" style="width:40px" onchange="updateChooseValue(${i},+this.value)"> <span style="font-size:.8em;color:#aaa">raz(y)</span>
+          <button class="sm danger" onclick="removeEffect(${i})">✕</button>
+        </div>
+        ${optHtml}
+        <button class="sm" onclick="addChooseOption(${i})" style="margin-top:4px">+ Opcja</button>
+      </div>`;
+    }
+    return `<div class="effect-row">
+      <select onchange="updateEffects()">${EFFECT_TYPES.map(t=>`<option value="${t.value}" ${t.value===e.type?'selected':''} ${t.disabled?'disabled style="color:#b44dff;font-weight:bold"':''}>${t.label}</option>`).join('')}</select>
+      <input type="number" value="${e.value||1}" min="1" max="10" style="width:45px" onchange="updateEffects()">
+      <button class="sm danger" onclick="removeEffect(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function renderDeckTags() {
+  const c = cur();
+  document.getElementById('deck-tags').innerHTML = decks.map(d =>
+    `<span class="deck-tag ${c&&c.deck===d?'active':''}" onclick="setDeck('${d}')">${d}</span>`
+  ).join('');
+}
+
+function renderPreview() {
+  const c = cur();
+  const el = document.getElementById('preview-card');
+  if (!c) { el.innerHTML = '<div id="preview-no-img">🃏<br>Wybierz lub dodaj kartę</div>'; return; }
+  if (c.image) {
+    el.innerHTML = `<img src="${c.image}"><div class="preview-overlay">
+      <b>${c.name}</b> | ${c.cost}💎 | ${c.deckPZ}/${c.innerPZ}PZ<br>
+      <span style="color:#aaa">${c.desc}</span></div>`;
+  } else {
+    el.innerHTML = `<div id="preview-no-img" style="padding:16px;text-align:center">
+      <div style="font-size:2em">🃏</div>
+      <div style="font-size:1.2em;color:#ffd700;font-weight:bold">${c.name}</div>
+      <div style="color:#b44dff">${c.cost} 💎</div>
+      <div style="color:#ccc;margin-top:8px">${c.desc}</div>
+      <div style="color:#4ecdc4;margin-top:8px">${c.deckPZ}PZ / ⬆${c.innerPZ}PZ</div>
+      <div style="color:#888;font-size:.8em">${c.aspect}</div>
+      <div style="margin-top:12px;font-size:.75em;color:#555">Wrzuć grafikę aby zobaczyć podgląd</div>
+    </div>`;
+  }
+}
+
+function renderStats() {
+  const total = cards.reduce((s,c) => s + (c.copies||1), 0);
+  const byDeck = {};
+  cards.forEach(c => { byDeck[c.deck||'?'] = (byDeck[c.deck||'?']||0) + (c.copies||1); });
+  document.getElementById('stats').innerHTML =
+    `Kart: ${cards.length} (${total} z kopiami)<br>` +
+    Object.entries(byDeck).map(([d,n]) => `${d}: ${n}`).join(' | ');
+}
+
+// --- EXPORT ---
+function exportCards() {
+  const data = cards.map(c => {
+    const {image, ...rest} = c;
+    return rest;
+  });
+  const js = `// Generated by Card Editor\nconst CARD_DEFINITIONS = ${JSON.stringify(data, null, 2)};\nconst CARD_DECKS = ${JSON.stringify(decks)};\n`;
+  download(js, 'card-data.js');
+}
+
+function exportWithImages() {
+  // Export with base64 images embedded
+  const js = `// Generated by Card Editor (with images)\nconst CARD_DEFINITIONS = ${JSON.stringify(cards, null, 2)};\nconst CARD_DECKS = ${JSON.stringify(decks)};\n`;
+  download(js, 'card-data-images.js');
+}
+
+function download(content, filename) {
+  const blob = new Blob([content], {type:'text/javascript'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = filename; a.click();
+}
+
+function importCards() {
+  const input = document.createElement('input'); input.type='file'; input.accept='.js,.json';
+  input.onchange = () => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result;
+        const m = text.match(/CARD_DEFINITIONS\s*=\s*(\[[\s\S]*?\]);/);
+        const md = text.match(/CARD_DECKS\s*=\s*(\[[\s\S]*?\]);/);
+        if (m) {
+          cards = eval(m[1]);
+          if (md) decks = eval(md[1]);
+          selectedIdx = cards.length > 0 ? 0 : -1;
+          renderAll();
+          alert(`Wczytano ${cards.length} kart`);
+        } else throw new Error('Nie znaleziono CARD_DEFINITIONS');
+      } catch(e) { alert('Błąd: '+e.message); }
+    };
+    reader.readAsText(input.files[0]);
+  };
+  input.click();
+}
+
+// Base cards
+let baseCards = {noble:{image:null}, soldier:{image:null}, guard:{image:null}, lolth:{image:null}, madman:{image:null}};
+
+function setBaseImage(type, evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function() { baseCards[type].image = reader.result; renderBasePreview(); };
+  reader.readAsDataURL(file);
+}
+
+function renderBasePreview() {
+  const names = {noble:'Szlachcic',soldier:'Żołnierz',guard:'Strażnik',lolth:'Kapłanka',madman:'Wyrzutek'};
+  document.getElementById('base-cards-preview').innerHTML = Object.entries(baseCards).map(([k,v]) =>
+    `<div style="width:50px;text-align:center;font-size:.6em">
+      <div style="width:50px;height:70px;border-radius:4px;overflow:hidden;border:1px solid ${v.image?'#ffd700':'#333'};background:#1a1a2e;display:flex;align-items:center;justify-content:center">
+        ${v.image ? `<img src="${v.image}" style="width:100%;height:100%;object-fit:cover">` : '?'}
+      </div>${names[k]||k}</div>`
+  ).join('');
+}
+
+// Override export to include base cards
+const _origExport = exportCards;
+exportCards = function() {
+  const data = cards.map(c => { const {image, ...rest} = c; return rest; });
+  const js = `// Generated by Card Editor\nconst CARD_DEFINITIONS = ${JSON.stringify(data, null, 2)};\nconst CARD_DECKS = ${JSON.stringify(decks)};\nconst BASE_CARDS = ${JSON.stringify(baseCards)};\n`;
+  download(js, 'card-data.js');
+};
+
+const _origExportImg = exportWithImages;
+exportWithImages = function() {
+  const js = `// Generated by Card Editor (with images)\nconst CARD_DEFINITIONS = ${JSON.stringify(cards, null, 2)};\nconst CARD_DECKS = ${JSON.stringify(decks)};\nconst BASE_CARDS = ${JSON.stringify(baseCards)};\n`;
+  download(js, 'card-data-images.js');
+};
+
+// Override import to load base cards
+const _origImport = importCards;
+importCards = function() {
+  const input = document.createElement('input'); input.type='file'; input.accept='.js,.json';
+  input.onchange = () => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result;
+        const m = text.match(/CARD_DEFINITIONS\s*=\s*(\[[\s\S]*?\]);/);
+        const md = text.match(/CARD_DECKS\s*=\s*(\[[\s\S]*?\]);/);
+        const mb = text.match(/BASE_CARDS\s*=\s*(\{[\s\S]*?\});/);
+        if (m) {
+          cards = eval(m[1]);
+          if (md) decks = eval(md[1]);
+          if (mb) { const imported = eval('('+mb[1]+')'); baseCards = {noble:{image:null}, soldier:{image:null}, guard:{image:null}, lolth:{image:null}, madman:{image:null}, ...imported}; renderBasePreview(); }
+          selectedIdx = cards.length > 0 ? 0 : -1;
+          renderAll();
+          alert('Wczytano ' + cards.length + ' kart');
+        } else throw new Error('Nie znaleziono CARD_DEFINITIONS');
+      } catch(e) { alert('Błąd: '+e.message); }
+    };
+    reader.readAsText(input.files[0]);
+  };
+  input.click();
+};
+
+// Init
+renderAll();
+</script>
+</body>
+</html>
