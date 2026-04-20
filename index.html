@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants of the Underdark</title>
+<title>Tyrants v11</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -282,6 +282,7 @@ function connectToHost() {
   peer.on('open', () => {
     // Try to find host by code - PeerJS uses full ID, we need to match
     // Host's ID ends with the code (lowercased)
+    document.querySelector('#join-setup button[onclick*=connectToHost]')&&(document.querySelector('#join-setup button[onclick*=connectToHost]').disabled=true);
     hostConn = peer.connect(code.toLowerCase());
     if (!hostConn) {
       // Try with the raw input as full peer ID
@@ -2525,6 +2526,7 @@ function render(){
   document.getElementById('res-tokens').textContent=`🏆 ${myP.vpTokens}`;
   document.getElementById('scores').innerHTML=scores.map((s,i)=>`<span class="score-badge ${i===pi?'active':''}" style="border:2px solid ${COLORS[i]};position:relative;cursor:pointer" onclick="toggleScoreDetail(${i})" onmouseleave="hideScoreDetail()">${s.name}: ${s.total}<div class="score-detail" id="sd-${i}">Talia: ${s.deckPZ}<br>Awanse: ${s.innerPZ}<br>Kontrola: ${s.areaPZ}<br>Pełna kontrola: +${s.fullControlBonus}<br>Trofea: ${s.trophyPZ}<br>Żetony PZ: ${s.tokenPZ}<br><b>Razem: ${s.total}</b></div></span>`).join('');
   renderPrompt();
+  if (G.pending && !previewCard && (!isOnline || G.currentPlayer===myPlayerId)) { const lp = cp().played; if (lp.length > 0) showPreview(lp[lp.length-1]); }
   // Auto-show last played card preview when pending
   if (G.pending && !previewCard && (!isOnline || G.currentPlayer===myPlayerId)) { const lp = cp().played; if (lp.length > 0) showPreview(lp[lp.length-1]); }renderSVGMap();renderHand();renderMarket();renderPlayed();renderInfo();renderLog();
 }
@@ -2581,7 +2583,7 @@ function renderMarket(){
   let h=`<div class="card-sm" onclick="if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(HOUSE_GUARD)" onmouseleave="clearPreview()" style="${G.influence>=HOUSE_GUARD.cost?'border-color:#b44dff':''}">${cardInner(HOUSE_GUARD)}</div>`;
   h+=`<div class="card-sm" onclick="if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(LOLTH_PRIESTESS)" onmouseleave="clearPreview()" style="${G.influence>=LOLTH_PRIESTESS.cost?'border-color:#b44dff':''}">${cardInner(LOLTH_PRIESTESS)}</div>`;
   h+=`<div style="width:1px;background:#333;margin:0 4px;flex-shrink:0"></div>`;
-  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
+  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="if(!G.market[${i}]?._hidden)showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
   mc.innerHTML=h;
   document.getElementById('market-deck-count').textContent=G.marketDeck.length;
 }
