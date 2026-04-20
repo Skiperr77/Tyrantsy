@@ -214,6 +214,143 @@ button:disabled { opacity:.4; }
 .slot-changed { animation:slotHighlight 2s ease-out; stroke:#ffd700 !important; }
 </style>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <header id="top-bar">
+    <div id="turn-info"></div>
+    <div id="scores"></div>
+    <div id="my-resources">
+      <span id="res-strength">⚔️ 0</span>
+      <span id="res-influence">💎 0</span>
+      <span id="res-tokens">🏆 0</span>
+    </div>
+    <button onclick="toggleStats()" style="padding:4px 14px;font-size:.85em;background:#1a1a2e;border:1px solid #555">📊</button> <button id="btn-reset-turn" style="padding:4px 14px;font-size:.85em;background:#e94560" onclick="resetTurn()">↩ Reset tury</button> <button id="btn-end-turn" style="padding:4px 14px;font-size:.85em">Zakończ turę</button>
+  </header>
+
+  <div id="game-area">
+    <div id="map-section">
+      <div id="board"></div>
+      <div id="board-legend"></div>
+      <div id="action-prompt" class="hidden"></div>
+      <div id="card-preview"></div>
+      <div id="played-panel">
+        <div id="played-panel-header">Teraz gra: <span class="player-name" id="played-player-name"></span></div>
+        <div id="played-panel-cards"></div>
+      </div>
+      <div id="log-window"></div>
+    </div>
+
+    <div id="bottom-bar">
+      <div id="hand-section">
+        <div id="hand-section-header">🃏 Ręka (<span id="hand-count">0</span>) | Talia: <span id="deck-count">0</span> | <span onclick="showPile('discard')" style="cursor:pointer;text-decoration:underline">Odrzucone: <span id="discard-count">0</span></span> | <span onclick="showPile('inner')" style="cursor:pointer;text-decoration:underline">Awanse: <span id="inner-count">0</span></span> | <span onclick="showTrophyPile()" style="cursor:pointer;text-decoration:underline">Trofea: <span id="trophy-count">0</span></span> | <span onclick="showControlPanel()" style="cursor:pointer;text-decoration:underline">Miasta: <span id="cities-count">0</span></span> | <span onclick="showArmyPanel()" style="cursor:pointer;text-decoration:underline">Oddziały: <span id="troops-count">0</span> | Szpiedzy: <span id="spies-count">0</span></span> <button id="btn-play-all" style="margin-left:auto;padding:2px 10px;font-size:.75em" onclick="playAllCards()">▶ Zagraj wszystkie</button></div>
+        <div id="hand-fan"></div>
+      </div>
+      <div id="market-section">
+        <div id="market-header">
+          <span class="section-toggle" onclick="toggleMarket()">🏪 Rynek (<span id="market-deck-count">0</span>)</span>
+          <span style="font-size:.7em;color:#555">kliknij aby zwinąć/rozwinąć</span>
+          <span onclick="showPile('devoured')" style="cursor:pointer;text-decoration:underline;font-size:.7em;color:#888;margin-left:auto">🪦 Pożarte: <span id="devoured-count">0</span></span>
+        </div>
+        <div id="market-content"></div>
+        <div id="market-collapsed-msg" onclick="toggleMarket()">🏪 Kliknij aby rozwinąć rynek</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="stats-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,10,26,0.85);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:#111128;border:2px solid #b44dff;border-radius:16px;padding:20px;max-width:600px;width:90%">
+      <h2 style="color:#b44dff;margin-bottom:12px">📊 Statystyki</h2>
+      <canvas id="stats-chart" width="560" height="300" style="width:100%;background:#0a0a18;border-radius:8px"></canvas>
+      <button onclick="document.getElementById('stats-overlay').style.display='none'" style="margin-top:10px">Zamknij</button>
+    </div>
+  </div>
+  <div id="control-panel" style="display:none;position:fixed;top:100px;left:50%;transform:translateX(-50%);background:rgba(15,15,34,0.8);backdrop-filter:blur(6px);border:1px solid rgba(180,77,255,0.4);border-radius:12px;padding:12px 16px;z-index:150;min-width:280px;cursor:move;user-select:none" onmousedown="startPanelDrag(event,'control-panel')">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="color:#b44dff;font-weight:bold;font-size:.9em">🏰 Kontrola miast</span>
+      <span onclick="document.getElementById('control-panel').style.display='none'" style="cursor:pointer;color:#888;font-size:1.2em">✕</span>
+    </div>
+    <div id="control-panel-content" style="font-size:.8em;line-height:1.8"></div>
+  </div>
+  <div id="drag-ghost" style="display:none"></div>
+  <div id="play-drop-zone">▶ Zagraj</div>
+
+  <div id="setup-screen">
+    <h1>⚔️ Tyrants of the Underdark</h1>
+    <p style="font-size:.85em;color:#888">Gra karciano-planszowa dla 2-4 graczy</p>
+    <details style="font-size:.75em;color:#aaa;max-width:400px;margin:4px 0;text-align:left">
+      <summary style="cursor:pointer;color:#b44dff">📋 Jak grać online?</summary>
+      <div style="padding:6px;line-height:1.6">
+        <b>Host:</b> Wpisz imię → Stwórz pokój → Skopiuj kod → Wyślij koledze → Wczytaj karty → Wybierz talie → Gotowy → Rozpocznij<br>
+        <b>Gracz:</b> Wpisz imię → Dołącz → Wklej kod → Połącz → Wczytaj te same karty → Gotowy → Czekaj na start<br>
+        <b>Lokalnie:</b> Kliknij Lokalny → Ustaw grę → Rozpocznij
+      </div>
+    </details>
+    <button id="btn-load-map">📂 Wczytaj mapę</button>
+    <button id="btn-load-cards">🃏 Wczytaj karty</button>
+    <button id="btn-load-sounds">🔊 Wczytaj dźwięki kart</button>
+    <span id="music-toggle" onclick="toggleMusic()" style="cursor:pointer;font-size:1.5em;margin-left:8px" title="Wycisz/włącz muzykę">🔊</span>
+    <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
+    <div id="deck-pick-section" style="display:none">
+      <p style="font-size:.85em;color:#b44dff;margin:4px 0">Wybierz 2 talie do gry:</p>
+      <div id="deck-checkboxes-setup" style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0"></div>
+      <button id="btn-random-2" style="padding:3px 10px;font-size:.8em">🎲 Wylosuj 2</button>
+    </div>
+    <div id="test-mode-section" style="display:none">
+      <label><input type="checkbox" id="chk-test-mode"> 🧪 Tryb testowy: wybierz karty na rynek</label>
+      <div id="test-card-picker" style="display:none;max-height:200px;overflow-y:auto;border:1px solid #333;border-radius:8px;padding:8px;margin-top:4px;background:#1a1a2e">
+      </div>
+    </div>
+    
+    <div style="border:1px solid #333;border-radius:8px;padding:10px;margin:8px 0">
+      <p style="color:#b44dff;font-weight:bold;margin-bottom:6px">🌐 Tryb online</p>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input id="host-name-input" placeholder="Twoje imię" style="width:100px" value=""> <button id="btn-host" onclick="hostGame()">🏠 Stwórz pokój</button>
+        <button id="btn-join" onclick="joinGame()">🔗 Dołącz</button>
+        <button id="btn-local" onclick="setLocalMode()" style="background:#555">👥 Lokalny</button>
+      </div>
+      <div id="online-status" style="font-size:.8em;color:#888"></div>
+      <div id="join-input" style="display:none;margin-top:4px">
+        <input id="online-name-input" placeholder="Twoje imię" style="width:100px" value=""> <input id="room-code-input" placeholder="Kod pokoju" style="width:150px">
+        <button onclick="connectToHost()" style="padding:4px 10px;font-size:.85em">Połącz</button>
+      </div>
+      <div id="room-code-display" style="display:none;margin-top:4px;font-size:1.2em;color:#ffd700;font-weight:bold"></div>
+      <div id="online-players" style="margin-top:4px;font-size:.8em"></div>
+    </div>
+    <label>Liczba graczy: <select id="player-count">
+      <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+    </select></label>
+    <label>Sektory mapy: <select id="sector-select">
+      <option value="auto">Automatycznie (wg graczy)</option>
+      <option value="center">Tylko Centrum</option>
+      <option value="center+left">Centrum + Lewy</option>
+      <option value="center+right">Centrum + Prawy</option>
+      <option value="all">Wszystkie 3</option>
+    </select></label>
+    <div id="player-names"></div>
+    <button id="btn-ready-lobby" onclick="setReady()" style="display:none;background:#4ecdc4">✋ Jestem gotowy</button>
+    <button id="btn-start">Rozpocznij grę</button>
+  </div>
+
+  <div id="deck-select-screen" style="display:none">
+    <h1>⚔️ Wybierz talie</h1>
+    <p style="font-size:.85em;color:#888">Wybierz 2 talie do gry (lub wylosuj)</p>
+    <div id="deck-checkboxes" style="display:flex;flex-direction:column;gap:8px;margin:12px 0"></div>
+    <div style="display:flex;gap:8px">
+      <button id="btn-random-decks">🎲 Wylosuj 2 talie</button>
+      <button id="btn-confirm-decks">✓ Graj z wybranymi</button>
+    </div>
+    <div id="deck-select-error" style="color:#e94560;font-size:.85em;margin-top:8px"></div>
+  </div>
+
+  <div id="transition-screen" style="display:none">
+    <h2 id="transition-text"></h2>
+    <p>Przekaż urządzenie odpowiedniemu graczowi</p>
+    <button id="btn-ready">Jestem gotowy!</button>
+  </div>
+  <div id="end-screen" style="display:none"></div>
+</div>
+
 <script>
 // === ONLINE NETWORKING (PeerJS) ===
 let peer = null;
@@ -580,145 +717,7 @@ document.addEventListener('keydown', e => {
     document.body.appendChild(dp);
   }
 });
-</script>
-</head>
-<body>
-<div id="app">
-  <header id="top-bar">
-    <div id="turn-info"></div>
-    <div id="scores"></div>
-    <div id="my-resources">
-      <span id="res-strength">⚔️ 0</span>
-      <span id="res-influence">💎 0</span>
-      <span id="res-tokens">🏆 0</span>
-    </div>
-    <button onclick="toggleStats()" style="padding:4px 14px;font-size:.85em;background:#1a1a2e;border:1px solid #555">📊</button> <button id="btn-reset-turn" style="padding:4px 14px;font-size:.85em;background:#e94560" onclick="resetTurn()">↩ Reset tury</button> <button id="btn-end-turn" style="padding:4px 14px;font-size:.85em">Zakończ turę</button>
-  </header>
 
-  <div id="game-area">
-    <div id="map-section">
-      <div id="board"></div>
-      <div id="board-legend"></div>
-      <div id="action-prompt" class="hidden"></div>
-      <div id="card-preview"></div>
-      <div id="played-panel">
-        <div id="played-panel-header">Teraz gra: <span class="player-name" id="played-player-name"></span></div>
-        <div id="played-panel-cards"></div>
-      </div>
-      <div id="log-window"></div>
-    </div>
-
-    <div id="bottom-bar">
-      <div id="hand-section">
-        <div id="hand-section-header">🃏 Ręka (<span id="hand-count">0</span>) | Talia: <span id="deck-count">0</span> | <span onclick="showPile('discard')" style="cursor:pointer;text-decoration:underline">Odrzucone: <span id="discard-count">0</span></span> | <span onclick="showPile('inner')" style="cursor:pointer;text-decoration:underline">Awanse: <span id="inner-count">0</span></span> | <span onclick="showTrophyPile()" style="cursor:pointer;text-decoration:underline">Trofea: <span id="trophy-count">0</span></span> | <span onclick="showControlPanel()" style="cursor:pointer;text-decoration:underline">Miasta: <span id="cities-count">0</span></span> | <span onclick="showArmyPanel()" style="cursor:pointer;text-decoration:underline">Oddziały: <span id="troops-count">0</span> | Szpiedzy: <span id="spies-count">0</span></span> <button id="btn-play-all" style="margin-left:auto;padding:2px 10px;font-size:.75em" onclick="playAllCards()">▶ Zagraj wszystkie</button></div>
-        <div id="hand-fan"></div>
-      </div>
-      <div id="market-section">
-        <div id="market-header">
-          <span class="section-toggle" onclick="toggleMarket()">🏪 Rynek (<span id="market-deck-count">0</span>)</span>
-          <span style="font-size:.7em;color:#555">kliknij aby zwinąć/rozwinąć</span>
-          <span onclick="showPile('devoured')" style="cursor:pointer;text-decoration:underline;font-size:.7em;color:#888;margin-left:auto">🪦 Pożarte: <span id="devoured-count">0</span></span>
-        </div>
-        <div id="market-content"></div>
-        <div id="market-collapsed-msg" onclick="toggleMarket()">🏪 Kliknij aby rozwinąć rynek</div>
-      </div>
-    </div>
-  </div>
-
-  <div id="stats-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,10,26,0.85);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.style.display='none'">
-    <div style="background:#111128;border:2px solid #b44dff;border-radius:16px;padding:20px;max-width:600px;width:90%">
-      <h2 style="color:#b44dff;margin-bottom:12px">📊 Statystyki</h2>
-      <canvas id="stats-chart" width="560" height="300" style="width:100%;background:#0a0a18;border-radius:8px"></canvas>
-      <button onclick="document.getElementById('stats-overlay').style.display='none'" style="margin-top:10px">Zamknij</button>
-    </div>
-  </div>
-  <div id="control-panel" style="display:none;position:fixed;top:100px;left:50%;transform:translateX(-50%);background:rgba(15,15,34,0.8);backdrop-filter:blur(6px);border:1px solid rgba(180,77,255,0.4);border-radius:12px;padding:12px 16px;z-index:150;min-width:280px;cursor:move;user-select:none" onmousedown="startPanelDrag(event,'control-panel')">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="color:#b44dff;font-weight:bold;font-size:.9em">🏰 Kontrola miast</span>
-      <span onclick="document.getElementById('control-panel').style.display='none'" style="cursor:pointer;color:#888;font-size:1.2em">✕</span>
-    </div>
-    <div id="control-panel-content" style="font-size:.8em;line-height:1.8"></div>
-  </div>
-  <div id="drag-ghost" style="display:none"></div>
-  <div id="play-drop-zone">▶ Zagraj</div>
-
-  <div id="setup-screen">
-    <h1>⚔️ Tyrants of the Underdark</h1>
-    <p style="font-size:.85em;color:#888">Gra karciano-planszowa dla 2-4 graczy</p>
-    <details style="font-size:.75em;color:#aaa;max-width:400px;margin:4px 0;text-align:left">
-      <summary style="cursor:pointer;color:#b44dff">📋 Jak grać online?</summary>
-      <div style="padding:6px;line-height:1.6">
-        <b>Host:</b> Wpisz imię → Stwórz pokój → Skopiuj kod → Wyślij koledze → Wczytaj karty → Wybierz talie → Gotowy → Rozpocznij<br>
-        <b>Gracz:</b> Wpisz imię → Dołącz → Wklej kod → Połącz → Wczytaj te same karty → Gotowy → Czekaj na start<br>
-        <b>Lokalnie:</b> Kliknij Lokalny → Ustaw grę → Rozpocznij
-      </div>
-    </details>
-    <button id="btn-load-map">📂 Wczytaj mapę</button>
-    <button id="btn-load-cards">🃏 Wczytaj karty</button>
-    <button id="btn-load-sounds">🔊 Wczytaj dźwięki kart</button>
-    <span id="music-toggle" onclick="toggleMusic()" style="cursor:pointer;font-size:1.5em;margin-left:8px" title="Wycisz/włącz muzykę">🔊</span>
-    <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
-    <div id="deck-pick-section" style="display:none">
-      <p style="font-size:.85em;color:#b44dff;margin:4px 0">Wybierz 2 talie do gry:</p>
-      <div id="deck-checkboxes-setup" style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0"></div>
-      <button id="btn-random-2" style="padding:3px 10px;font-size:.8em">🎲 Wylosuj 2</button>
-    </div>
-    <div id="test-mode-section" style="display:none">
-      <label><input type="checkbox" id="chk-test-mode"> 🧪 Tryb testowy: wybierz karty na rynek</label>
-      <div id="test-card-picker" style="display:none;max-height:200px;overflow-y:auto;border:1px solid #333;border-radius:8px;padding:8px;margin-top:4px;background:#1a1a2e">
-      </div>
-    </div>
-    
-    <div style="border:1px solid #333;border-radius:8px;padding:10px;margin:8px 0">
-      <p style="color:#b44dff;font-weight:bold;margin-bottom:6px">🌐 Tryb online</p>
-      <div style="display:flex;gap:6px;margin-bottom:6px">
-        <input id="host-name-input" placeholder="Twoje imię" style="width:100px" value=""> <button id="btn-host" onclick="hostGame()">🏠 Stwórz pokój</button>
-        <button id="btn-join" onclick="joinGame()">🔗 Dołącz</button>
-        <button id="btn-local" onclick="setLocalMode()" style="background:#555">👥 Lokalny</button>
-      </div>
-      <div id="online-status" style="font-size:.8em;color:#888"></div>
-      <div id="join-input" style="display:none;margin-top:4px">
-        <input id="online-name-input" placeholder="Twoje imię" style="width:100px" value=""> <input id="room-code-input" placeholder="Kod pokoju" style="width:150px">
-        <button onclick="connectToHost()" style="padding:4px 10px;font-size:.85em">Połącz</button>
-      </div>
-      <div id="room-code-display" style="display:none;margin-top:4px;font-size:1.2em;color:#ffd700;font-weight:bold"></div>
-      <div id="online-players" style="margin-top:4px;font-size:.8em"></div>
-    </div>
-    <label>Liczba graczy: <select id="player-count">
-      <option value="2">2</option><option value="3">3</option><option value="4">4</option>
-    </select></label>
-    <label>Sektory mapy: <select id="sector-select">
-      <option value="auto">Automatycznie (wg graczy)</option>
-      <option value="center">Tylko Centrum</option>
-      <option value="center+left">Centrum + Lewy</option>
-      <option value="center+right">Centrum + Prawy</option>
-      <option value="all">Wszystkie 3</option>
-    </select></label>
-    <div id="player-names"></div>
-    <button id="btn-ready-lobby" onclick="setReady()" style="display:none;background:#4ecdc4">✋ Jestem gotowy</button>
-    <button id="btn-start">Rozpocznij grę</button>
-  </div>
-
-  <div id="deck-select-screen" style="display:none">
-    <h1>⚔️ Wybierz talie</h1>
-    <p style="font-size:.85em;color:#888">Wybierz 2 talie do gry (lub wylosuj)</p>
-    <div id="deck-checkboxes" style="display:flex;flex-direction:column;gap:8px;margin:12px 0"></div>
-    <div style="display:flex;gap:8px">
-      <button id="btn-random-decks">🎲 Wylosuj 2 talie</button>
-      <button id="btn-confirm-decks">✓ Graj z wybranymi</button>
-    </div>
-    <div id="deck-select-error" style="color:#e94560;font-size:.85em;margin-top:8px"></div>
-  </div>
-
-  <div id="transition-screen" style="display:none">
-    <h2 id="transition-text"></h2>
-    <p>Przekaż urządzenie odpowiedniemu graczowi</p>
-    <button id="btn-ready">Jestem gotowy!</button>
-  </div>
-  <div id="end-screen" style="display:none"></div>
-</div>
-
-<script>
 const IMG_STORE = {};
 function storeImg(card) {
   if (!card || !card.image) return;
@@ -4065,6 +4064,7 @@ document.addEventListener('keydown', e => {
     document.body.appendChild(dp);
   }
 });
+
 </script>
 </body>
 </html>
