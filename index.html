@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tyrants of the Underdark</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="top-bar">
+    <div id="turn-info"></div>
+    <div id="scores"></div>
+    <div id="my-resources">
+      <span id="res-strength">⚔️ 0</span>
+      <span id="res-influence">💎 0</span>
+      <span id="res-tokens">🏆 0</span>
+    </div>
+    <button id="btn-end-turn" style="padding:4px 14px;font-size:.85em">Zakończ turę</button>
+  </header>
+
+  <div id="game-area">
+    <div id="map-section">
+      <div id="board"></div>
+      <div id="board-legend"></div>
+      <div id="action-prompt" class="hidden"></div>
+      <div id="card-preview"></div>
+      <div id="played-panel">
+        <div id="played-panel-header">Teraz gra: <span class="player-name" id="played-player-name"></span></div>
+        <div id="played-panel-cards"></div>
+      </div>
+      <div id="log-window"></div>
+    </div>
+
+    <div id="bottom-bar">
+      <div id="hand-section">
+        <div id="hand-section-header">🃏 Ręka (<span id="hand-count">0</span>) | Talia: <span id="deck-count">0</span> | <span onclick="showPile('discard')" style="cursor:pointer;text-decoration:underline">Odrzucone: <span id="discard-count">0</span></span> | <span onclick="showPile('inner')" style="cursor:pointer;text-decoration:underline">Awanse: <span id="inner-count">0</span></span> | <span onclick="showTrophyPile()" style="cursor:pointer;text-decoration:underline">Trofea: <span id="trophy-count">0</span></span> | Oddziały: <span id="troops-count">0</span> | Szpiedzy: <span id="spies-count">0</span> <button id="btn-play-all" style="margin-left:auto;padding:2px 10px;font-size:.75em" onclick="playAllCards()">▶ Zagraj wszystkie</button></div>
+        <div id="hand-fan"></div>
+      </div>
+      <div id="market-section">
+        <div id="market-header">
+          <span class="section-toggle" onclick="toggleMarket()">🏪 Rynek (<span id="market-deck-count">0</span>)</span>
+          <span style="font-size:.7em;color:#555">kliknij aby zwinąć/rozwinąć</span>
+          <span onclick="showPile('devoured')" style="cursor:pointer;text-decoration:underline;font-size:.7em;color:#888;margin-left:auto">🪦 Pożarte: <span id="devoured-count">0</span></span>
+        </div>
+        <div id="market-content"></div>
+        <div id="market-collapsed-msg" onclick="toggleMarket()">🏪 Kliknij aby rozwinąć rynek</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="drag-ghost" style="display:none"></div>
+  <div id="play-drop-zone">▶ Zagraj</div>
+
+  <div id="setup-screen">
+    <h1>⚔️ Tyrants of the Underdark</h1>
+    <p>Prototyp lokalny (hot-seat)</p>
+    <button id="btn-load-map">📂 Wczytaj mapę</button>
+    <button id="btn-load-cards">🃏 Wczytaj karty</button>
+    <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
+    <div id="test-mode-section" style="display:none">
+      <label><input type="checkbox" id="chk-test-mode"> 🧪 Tryb testowy: wybierz karty na rynek</label>
+      <div id="test-card-picker" style="display:none;max-height:200px;overflow-y:auto;border:1px solid #333;border-radius:8px;padding:8px;margin-top:4px;background:#1a1a2e">
+      </div>
+    </div>
+    <label>Liczba graczy: <select id="player-count">
+      <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+    </select></label>
+    <label>Sektory mapy: <select id="sector-select">
+      <option value="auto">Automatycznie (wg graczy)</option>
+      <option value="center">Tylko Centrum</option>
+      <option value="center+left">Centrum + Lewy</option>
+      <option value="center+right">Centrum + Prawy</option>
+      <option value="all">Wszystkie 3</option>
+    </select></label>
+    <div id="player-names"></div>
+    <button id="btn-start">Rozpocznij grę</button>
+  </div>
+
+  <div id="deck-select-screen" style="display:none">
+    <h1>⚔️ Wybierz talie</h1>
+    <p style="font-size:.85em;color:#888">Wybierz 2 talie do gry (lub wylosuj)</p>
+    <div id="deck-checkboxes" style="display:flex;flex-direction:column;gap:8px;margin:12px 0"></div>
+    <div style="display:flex;gap:8px">
+      <button id="btn-random-decks">🎲 Wylosuj 2 talie</button>
+      <button id="btn-confirm-decks">✓ Graj z wybranymi</button>
+    </div>
+    <div id="deck-select-error" style="color:#e94560;font-size:.85em;margin-top:8px"></div>
+  </div>
+
+  <div id="transition-screen" style="display:none">
+    <h2 id="transition-text"></h2>
+    <p>Przekaż urządzenie odpowiedniemu graczowi</p>
+    <button id="btn-ready">Jestem gotowy!</button>
+  </div>
+  <div id="end-screen" style="display:none"></div>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="ui.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
