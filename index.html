@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants v13</title>
+<title>Tyrants v14</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -788,6 +788,7 @@ function toggleMusic() {
 </div>
 
 <script>
+window.CARD_SOUNDS = window.CARD_SOUNDS || {};
 const IMG_STORE = {};
 function storeImg(card) {
   if (!card || !card.image) return;
@@ -1187,6 +1188,7 @@ function playCard(cardId) {
   if (idx === -1) return;
   const card = p.hand.splice(idx, 1)[0];
   p.played.push(card);
+  var _sc=(card.name||'').slice(0,3).trim(); if(window.CARD_SOUNDS[_sc]){try{var _ca=window.CARD_SOUNDS[_sc].cloneNode();_ca.volume=0.5;_ca.play().catch(function(){});}catch(e){}}
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
@@ -3386,6 +3388,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 
 function startGameWithDecks(selectedDecks) {
+  if(window.lobbyMusic){window.lobbyMusic.pause();window.lobbyMusic.currentTime=0;}
   // Filter market pool to only selected decks
   if (selectedDecks.length > 0) {
     const filtered = MARKET_POOL_DEF.filter(c => !c.deck || selectedDecks.includes(c.deck));
@@ -3917,28 +3920,31 @@ function handleClientMessage(data) {
     if (data.log) actionLog = data.log;
     // Detect changes and play sounds locally
     if (G && data.state) {
-      const newG = JSON.parse(data.state);
-      const pi = newG.currentPlayer;
-      const oldPlayed = G.players[pi]?.played?.length || 0;
-      const newPlayed = newG.players[pi]?.played?.length || 0;
-      // Card played
-      if (newPlayed > oldPlayed) {
-        const card = newG.players[pi].played[newPlayed - 1];
-        if (card && CARD_SOUNDS) {
-          const code = (card.name||'').slice(0,3).trim();
-          if (CARD_SOUNDS[code]) { try { const c=CARD_SOUNDS[code].cloneNode(); c.volume=0.5; c.play().catch(()=>{}); } catch(e){} }
+      try {
+        const newG = JSON.parse(data.state);
+        // Card played - check all players
+        for (let _i=0; _i<newG.players.length; _i++) {
+          const oldLen = G.players[_i]?.played?.length || 0;
+          const newLen = newG.players[_i]?.played?.length || 0;
+          if (newLen > oldLen) {
+            const card = newG.players[_i].played[newLen - 1];
+            const code = (card?.name||'').slice(0,3).trim();
+            if (window.CARD_SOUNDS && window.CARD_SOUNDS[code]) { try { var _c=window.CARD_SOUNDS[code].cloneNode(); _c.volume=0.5; _c.play().catch(function(){}); } catch(e){} }
+          }
         }
-      }
-      // Troop deployed (any player's troops on board increased)
-      const oldTroops = G.players.reduce((s,p) => s + (40 - p.troopsInBarracks), 0);
-      const newTroops = newG.players.reduce((s,p) => s + (40 - p.troopsInBarracks), 0);
-      if (newTroops > oldTroops) playDeploySound();
-      // Kill (any trophy hall increased)
-      const oldTrophies = G.players.reduce((s,p) => s + p.trophyHall.length, 0);
-      const newTrophies = newG.players.reduce((s,p) => s + p.trophyHall.length, 0);
-      if (newTrophies > oldTrophies) playDeathSound();
-      // Card bought (market changed)
-      if (JSON.stringify(G.market?.map(c=>c.id)) !== JSON.stringify(newG.market?.map(c=>c.id))) playSound('coin');
+        // Deploy
+        const oldT = G.players.reduce(function(s,p){return s+(40-p.troopsInBarracks)},0);
+        const newT = newG.players.reduce(function(s,p){return s+(40-p.troopsInBarracks)},0);
+        if (newT > oldT) playDeploySound();
+        // Kill
+        const oldK = G.players.reduce(function(s,p){return s+p.trophyHall.length},0);
+        const newK = newG.players.reduce(function(s,p){return s+p.trophyHall.length},0);
+        if (newK > oldK) playDeathSound();
+        // Buy
+        const oldM = G.market ? G.market.map(function(c){return c.id}).join(',') : '';
+        const newM = newG.market ? newG.market.map(function(c){return c.id}).join(',') : '';
+        if (oldM !== newM && oldM !== '') playSound('coin');
+      } catch(e) {}
     }
     render();
   }
