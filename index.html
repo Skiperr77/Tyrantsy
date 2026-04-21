@@ -1368,6 +1368,11 @@ function applyEffects(effects) {
       case 'place_spy_opponents_discard': G.pending = {type:'place_spy_opponents_discard', then:effects.slice(ei+1), remaining:eff.value}; return;
       case 'assassinate_then_discard': G.pending = {type:'assassinate_then_discard', then:effects.slice(ei+1), remaining:eff.value||1}; return;
       case 'assassinate_area_gain_influence': G.pending = {type:'assassinate_area_gain_influence', then:effects.slice(ei+1), remaining:eff.value||3, area:null}; return;
+      case 'recruit_free_aspect_ambicja': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Ambicja'}; return;
+      case 'recruit_free_aspect_podboj': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Podbój'}; return;
+      case 'recruit_free_aspect_podstep': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Podstęp'}; return;
+      case 'recruit_free_aspect_zlosliwosc': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Złośliwość'}; return;
+      case 'recruit_free_aspect_posluszenstwo': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Posłuszeństwo'}; return;
       case 'recruit_free_aspect': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:eff.maxCost||4, aspect:eff.aspect||'Ambicja'}; return;
       case 'promote_aspect_end_of_turn':
         if (!G._promoteAspectEndOfTurn) G._promoteAspectEndOfTurn = [];
@@ -3851,6 +3856,31 @@ function handleClientMessage(data) {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
+    // Detect changes and play sounds locally
+    if (G && data.state) {
+      const newG = JSON.parse(data.state);
+      const pi = newG.currentPlayer;
+      const oldPlayed = G.players[pi]?.played?.length || 0;
+      const newPlayed = newG.players[pi]?.played?.length || 0;
+      // Card played
+      if (newPlayed > oldPlayed) {
+        const card = newG.players[pi].played[newPlayed - 1];
+        if (card && CARD_SOUNDS) {
+          const code = (card.name||'').slice(0,3).trim();
+          if (CARD_SOUNDS[code]) { try { const c=CARD_SOUNDS[code].cloneNode(); c.volume=0.5; c.play().catch(()=>{}); } catch(e){} }
+        }
+      }
+      // Troop deployed (any player's troops on board increased)
+      const oldTroops = G.players.reduce((s,p) => s + (40 - p.troopsInBarracks), 0);
+      const newTroops = newG.players.reduce((s,p) => s + (40 - p.troopsInBarracks), 0);
+      if (newTroops > oldTroops) playDeploySound();
+      // Kill (any trophy hall increased)
+      const oldTrophies = G.players.reduce((s,p) => s + p.trophyHall.length, 0);
+      const newTrophies = newG.players.reduce((s,p) => s + p.trophyHall.length, 0);
+      if (newTrophies > oldTrophies) playDeathSound();
+      // Card bought (market changed)
+      if (JSON.stringify(G.market?.map(c=>c.id)) !== JSON.stringify(newG.market?.map(c=>c.id))) playSound('coin');
+    }
     render();
   }
   if (data.type === 'start') {
