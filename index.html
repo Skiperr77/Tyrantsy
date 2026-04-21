@@ -313,6 +313,16 @@ function updateOnlinePlayers() {
 // handleHostMessage moved to wrapper section
 
 // Client receives state from host
+function _playSndQueue(arr) {
+  if (!arr || !arr.length) return;
+  arr.forEach(function(s) {
+    if (s.indexOf('card:') === 0) {
+      var code = s.slice(5);
+      if (window.CARD_SOUNDS[code]) { try { var c = window.CARD_SOUNDS[code].cloneNode(); c.volume=0.5; c.play().catch(function(){}); } catch(e){} }
+      else { try { var a = new Audio('sounds/cards/'+code+'.wav'); a.onerror=function(){var a2=new Audio('sounds/cards/'+code+'.mp3');a2.volume=0.5;a2.play().catch(function(){});}; a.volume=0.5; a.play().catch(function(){}); } catch(e){} }
+    } else { playSound(s); }
+  });
+}
 function handleClientMessage(data) {
   if (data.type === 'lobby') {
     // Show lobby info
@@ -331,20 +341,11 @@ function handleClientMessage(data) {
     myPlayerId = data.playerId;
     document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
   }
+  if (data.type === 'snd') { _playSndQueue(data.snd); }
   if (data.type === 'state') {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if (data.snd && data.snd.length) data.snd.forEach(function(s) {
-      if (s.indexOf('card:') === 0) {
-        var code = s.slice(5);
-        if (window.CARD_SOUNDS && window.CARD_SOUNDS[code]) {
-          try { var c = window.CARD_SOUNDS[code].cloneNode(); c.volume = 0.5; c.play().catch(function(){}); } catch(e) {}
-        } else {
-          try { var a = new Audio('sounds/cards/' + code + '.wav'); a.onerror = function(){ var a2 = new Audio('sounds/cards/' + code + '.mp3'); a2.volume=0.5; a2.play().catch(function(){}); }; a.volume=0.5; a.play().catch(function(){}); } catch(e) {}
-        }
-      } else { playSound(s); }
-    });
     render();
   }
   if (data.type === 'start') {
@@ -359,12 +360,17 @@ function handleClientMessage(data) {
 }
 
 window._soundQueue = window._soundQueue || [];
+function broadcastSounds() {
+  if (_sndQ.length === 0) return;
+  var snd = _sndQ; _sndQ = [];
+  connections.forEach(function(c) { if (c.open) c.send({type:"snd", snd:snd}); });
+}
 function broadcastState() {
-  const stateStr = JSON.stringify(G);
-  connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
+  broadcastSounds();
+  var stateStr = JSON.stringify(G);
+  connections.forEach(function(c) {
+    if (c.open) c.send({type:"state", state: stateStr, log: actionLog});
   });
-  _sndQ = [];
 }
 
 // executeNetAction replaced by wrapper
@@ -3593,11 +3599,11 @@ function handleClientMessage(data) {
     myPlayerId = data.playerId;
     document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
   }
+  if (data.type === 'snd') { _playSndQueue(data.snd); }
   if (data.type === 'state') {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if(data.snd&&data.snd.length)data.snd.forEach(function(s){if(s.indexOf('card:')===0){var code=s.slice(5);if(window.CARD_SOUNDS&&window.CARD_SOUNDS[code]){try{var c=window.CARD_SOUNDS[code].cloneNode();c.volume=0.5;c.play().catch(function(){});}catch(e){}}else{try{var a=new Audio('sounds/cards/'+code+'.wav');a.onerror=function(){var a2=new Audio('sounds/cards/'+code+'.mp3');a2.volume=0.5;a2.play().catch(function(){});};a.volume=0.5;a.play().catch(function(){});}catch(e){}}}else{playSound(s);}});
     render();
   }
   if (data.type === 'start') {
@@ -3612,12 +3618,17 @@ function handleClientMessage(data) {
 }
 
 window._soundQueue = window._soundQueue || [];
+function broadcastSounds() {
+  if (_sndQ.length === 0) return;
+  var snd = _sndQ; _sndQ = [];
+  connections.forEach(function(c) { if (c.open) c.send({type:"snd", snd:snd}); });
+}
 function broadcastState() {
-  const stateStr = JSON.stringify(G);
-  connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
+  broadcastSounds();
+  var stateStr = JSON.stringify(G);
+  connections.forEach(function(c) {
+    if (c.open) c.send({type:"state", state: stateStr, log: actionLog});
   });
-  _sndQ = [];
 }
 
 // executeNetAction replaced by wrapper
