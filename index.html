@@ -354,13 +354,6 @@ function handleClientMessage(data) {
 }
 
 window._soundQueue = window._soundQueue || [];
-function broadcastState() {
-  const stateStr = JSON.stringify(G);
-  connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, sounds: window._soundQueue});
-  });
-  window._soundQueue = [];
-}
 
 // executeNetAction replaced by wrapper
 
