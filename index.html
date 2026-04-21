@@ -1,10 +1,23 @@
 <!DOCTYPE html>
-<script>var _sndQ=[];window.CARD_SOUNDS=window.CARD_SOUNDS||{};</script>
+<script>var _sndQ=[];window.CARD_SOUNDS=window.CARD_SOUNDS||{};
+function loadSoundsBtn() {
+  var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
+  inp.onchange=function(){var ld=0,tt=inp.files.length;
+    Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();
+      r.onload=function(){var a=new Audio(r.result);
+        if(c.toLowerCase()==='menu'){if(window._lobM)window._lobM.pause();window._lobM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}
+        else{window.CARD_SOUNDS[c]=a;}
+        ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';
+      };r.readAsDataURL(f);
+    });
+  };inp.click();
+}
+</script>
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants v20</title>
+<title>Tyrants v24</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -313,7 +326,6 @@ function updateOnlinePlayers() {
 // handleHostMessage moved to wrapper section
 
 // Client receives state from host
-function _playSnd(arr) { if(!arr||!arr.length)return; arr.forEach(function(s){ if(s.indexOf('card:')===0){var code=s.slice(5);if(window.CARD_SOUNDS[code]){try{window.CARD_SOUNDS[code].cloneNode().play().catch(function(){});}catch(e){}}else{try{var a=new Audio('sounds/cards/'+code+'.wav');a.volume=0.5;a.play().catch(function(){});}catch(e){}}}else{playSound(s);}}); }
 function handleClientMessage(data) {
   if (data.type === 'lobby') {
     // Show lobby info
@@ -332,12 +344,20 @@ function handleClientMessage(data) {
     myPlayerId = data.playerId;
     document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
   }
-  if (data.type === 'snd' && data.snd) { _playSnd(data.snd); }
   if (data.type === 'state') {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if (data.snd) _playSnd(data.snd);
+    if (data.snd && data.snd.length) data.snd.forEach(function(s) {
+      if (s.indexOf('card:') === 0) {
+        var code = s.slice(5);
+        if (window.CARD_SOUNDS && window.CARD_SOUNDS[code]) {
+          try { var c = window.CARD_SOUNDS[code].cloneNode(); c.volume = 0.5; c.play().catch(function(){}); } catch(e) {}
+        } else {
+          try { var a = new Audio('sounds/cards/' + code + '.wav'); a.onerror = function(){ var a2 = new Audio('sounds/cards/' + code + '.mp3'); a2.volume=0.5; a2.play().catch(function(){}); }; a.volume=0.5; a.play().catch(function(){}); } catch(e) {}
+        }
+      } else { playSound(s); }
+    });
     render();
   }
   if (data.type === 'start') {
@@ -353,20 +373,12 @@ function handleClientMessage(data) {
 
 window._soundQueue = window._soundQueue || [];
 function broadcastState() {
-  var snd = _sndQ; _sndQ = [];
-  if (snd.length) connections.forEach(function(c) { if (c.open) c.send({type:"snd", snd:snd}); });
-  var stateStr = JSON.stringify(G);
-  connections.forEach(function(c) {
-    if (c.open) c.send({type:"state", state: stateStr, log: actionLog});
+  const stateStr = JSON.stringify(G);
+  connections.forEach(c => {
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
   });
+  _sndQ = [];
 }
-
-
-
-
-
-
-
 
 // executeNetAction replaced by wrapper
 
@@ -581,6 +593,19 @@ document.addEventListener('keydown', e => {
     document.body.appendChild(dp);
   }
 });
+
+function loadSoundsBtn() {
+  var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
+  inp.onchange=function(){var ld=0,tt=inp.files.length;
+    Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();
+      r.onload=function(){var a=new Audio(r.result);
+        if(c.toLowerCase()==='menu'){if(window._lobM)window._lobM.pause();window._lobM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}
+        else{window.CARD_SOUNDS[c]=a;}
+        ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';
+      };r.readAsDataURL(f);
+    });
+  };inp.click();
+}
 </script>
 </head>
 <body>
@@ -645,69 +670,92 @@ document.addEventListener('keydown', e => {
 
   <div id="setup-screen">
     <h1>⚔️ Tyrants of the Underdark</h1>
-    <p style="font-size:.85em;color:#888">Gra karciano-planszowa dla 2-4 graczy</p>
-    <details style="font-size:.75em;color:#aaa;max-width:400px;margin:4px 0;text-align:left">
-      <summary style="cursor:pointer;color:#b44dff">📋 Jak grać online?</summary>
-      <div style="padding:6px;line-height:1.6">
-        <b>Host:</b> Wpisz imię → Stwórz pokój → Skopiuj kod → Wyślij koledze → Wczytaj karty → Wybierz talie → Gotowy → Rozpocznij<br>
-        <b>Gracz:</b> Wpisz imię → Dołącz → Wklej kod → Połącz → Wczytaj te same karty → Gotowy → Czekaj na start<br>
-        <b>Lokalnie:</b> Kliknij Lokalny → Ustaw grę → Rozpocznij
-      </div>
-    </details>
-    <button id="btn-load-map">📂 Wczytaj mapę</button>
-    <button id="btn-load-cards">🃏 Wczytaj karty</button>
-    <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
-    <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
-    <div id="deck-pick-section" style="display:none">
-      <p style="font-size:.85em;color:#b44dff;margin:4px 0">Wybierz 2 talie do gry:</p>
-      <div id="deck-checkboxes-setup" style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0"></div>
-      <button id="btn-random-2" style="padding:3px 10px;font-size:.8em">🎲 Wylosuj 2</button>
-    </div>
-    <div id="test-mode-section" style="display:none">
-      <label><input type="checkbox" id="chk-test-mode"> 🧪 Tryb testowy: wybierz karty na rynek</label>
-      <div id="test-card-picker" style="display:none;max-height:200px;overflow-y:auto;border:1px solid #333;border-radius:8px;padding:8px;margin-top:4px;background:#1a1a2e">
-      </div>
-    </div>
-    
-    <div style="border:1px solid #333;border-radius:8px;padding:10px;margin:8px 0">
-      <p style="color:#b44dff;font-weight:bold;margin-bottom:6px">🌐 Tryb online</p>
-      <div style="display:flex;gap:6px;margin-bottom:6px">
-        <input id="host-name-input" placeholder="Twoje imię" style="width:100px" value=""> <button id="btn-host" onclick="hostGame()">🏠 Stwórz pokój</button>
-        <button id="btn-join" onclick="joinGame()">🔗 Dołącz</button>
-        <button id="btn-local" onclick="setLocalMode()" style="background:#555">👥 Lokalny</button>
-      </div>
-      <div id="online-status" style="font-size:.8em;color:#888"></div>
-      <div id="join-input" style="display:none;margin-top:4px">
-        <input id="online-name-input" placeholder="Twoje imię" style="width:100px" value=""> <input id="room-code-input" placeholder="Kod pokoju" style="width:150px">
-        <button onclick="connectToHost()" style="padding:4px 10px;font-size:.85em">Połącz</button>
-      </div>
-      <div id="room-code-display" style="display:none;margin-top:4px;font-size:1.2em;color:#ffd700;font-weight:bold"></div>
-      <div id="online-players" style="margin-top:4px;font-size:.8em"></div>
-    </div>
-    <label>Liczba graczy: <select id="player-count">
-      <option value="2">2</option><option value="3">3</option><option value="4">4</option>
-    </select></label>
-    <label>Sektory mapy: <select id="sector-select">
-      <option value="auto">Automatycznie (wg graczy)</option>
-      <option value="center">Tylko Centrum</option>
-      <option value="center+left">Centrum + Lewy</option>
-      <option value="center+right">Centrum + Prawy</option>
-      <option value="all">Wszystkie 3</option>
-    </select></label>
-    <div id="player-names"></div>
-    <button id="btn-ready-lobby" onclick="setReady()" style="display:none;background:#4ecdc4">✋ Jestem gotowy</button>
-    <button id="btn-start">Rozpocznij grę</button>
-  </div>
+    <p style="font-size:.85em;color:#888;margin-bottom:16px">Gra karciano-planszowa dla 2-4 graczy</p>
 
-  <div id="deck-select-screen" style="display:none">
-    <h1>⚔️ Wybierz talie</h1>
-    <p style="font-size:.85em;color:#888">Wybierz 2 talie do gry (lub wylosuj)</p>
-    <div id="deck-checkboxes" style="display:flex;flex-direction:column;gap:8px;margin:12px 0"></div>
-    <div style="display:flex;gap:8px">
-      <button id="btn-random-decks">🎲 Wylosuj 2 talie</button>
-      <button id="btn-confirm-decks">✓ Graj z wybranymi</button>
+    <!-- Online: Host / Join -->
+    <div style="display:flex;gap:16px;margin-bottom:16px;max-width:800px;width:95%">
+      <!-- HOST -->
+      <div style="flex:1;background:#111128;border:1px solid #333;border-radius:12px;padding:16px">
+        <h2 style="color:#b44dff;font-size:1.1em;margin-bottom:4px">🏠 Stwórz grę (Host)</h2>
+        <p style="color:#777;font-size:.75em;margin-bottom:10px">Tylko jeden gracz tworzy grę. Reszta dołącza kodem.</p>
+        <input id="host-name-input" placeholder="Nazwa gracza" style="width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:6px;margin-bottom:8px">
+        <button id="btn-host" onclick="hostGame()" style="width:100%;padding:10px">Stwórz pokój</button>
+        <div id="room-code-display" style="display:none;background:#1a1a2e;border:2px solid #ffd700;border-radius:8px;padding:10px;text-align:center;margin:8px 0;cursor:pointer" title="Kliknij aby skopiować"></div>
+        
+        <div style="margin-top:12px">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <button id="btn-load-map" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">📂 Wczytaj mapę</button>
+            <button id="btn-load-cards" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🃏 Wczytaj karty</button>
+            <button onclick="loadSoundsBtn()" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🔊 Dźwięki</button>
+          </div>
+          <div id="map-status" style="font-size:.8em;color:#888;margin-bottom:8px">Domyślna mapa i karty</div>
+        </div>
+
+        <div id="deck-pick-section" style="display:none">
+          <p style="color:#b44dff;font-size:.85em;margin:4px 0">Talie do gry:</p>
+          <div id="deck-checkboxes-setup" style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0"></div>
+          <button id="btn-random-2" style="padding:4px 10px;font-size:.8em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🎲 Wylosuj 2</button>
+        </div>
+
+        <div style="margin-top:8px">
+          <label style="font-size:.85em;color:#aaa">Sektory mapy:</label>
+          <select id="sector-select" style="width:100%;padding:6px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:4px;font-size:.85em">
+            <option value="auto">Automatycznie (wg graczy)</option>
+            <option value="center">Tylko Centrum</option>
+            <option value="center+left">Centrum + Lewy</option>
+            <option value="center+right">Centrum + Prawy</option>
+            <option value="all">Wszystkie 3</option>
+          </select>
+        </div>
+
+        <div id="test-mode-section" style="display:none;margin-top:8px">
+          <label><input type="checkbox" id="chk-test-mode"> 🧪 Tryb testowy</label>
+          <div id="test-card-picker" style="display:none;max-height:150px;overflow-y:auto;border:1px solid #333;border-radius:6px;padding:6px;margin-top:4px;background:#1a1a2e"></div>
+        </div>
+      </div>
+
+      <!-- JOIN -->
+      <div style="flex:1;background:#111128;border:1px solid #333;border-radius:12px;padding:16px">
+        <h2 style="color:#b44dff;font-size:1.1em;margin-bottom:4px">🔗 Dołącz do gry</h2>
+        <p style="color:#777;font-size:.75em;margin-bottom:10px">Wpisz nazwę i wklej kod od hosta.</p>
+        <input id="online-name-input" placeholder="Nazwa gracza" style="width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:6px;margin-bottom:8px">
+        <input id="room-code-input" placeholder="Wklej kod pokoju" style="width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:6px;margin-bottom:8px">
+        <button onclick="connectToHost()" style="width:100%;padding:10px">Połącz</button>
+        <div id="join-status" style="font-size:.85em;color:#888;margin-top:8px"></div>
+
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button id="btn-load-cards-join" onclick="document.getElementById('btn-load-cards').click()" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🃏 Wczytaj karty</button>
+          <button onclick="loadSoundsBtn()" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🔊 Dźwięki</button>
+        </div>
+        <p style="color:#666;font-size:.7em;margin-top:6px">Wczytaj te same pliki co host.</p>
+      </div>
     </div>
-    <div id="deck-select-error" style="color:#e94560;font-size:.85em;margin-top:8px"></div>
+
+    <!-- Lobby table -->
+    <div id="lobby-table-section" style="display:none;background:#111128;border:1px solid #333;border-radius:12px;padding:16px;margin-bottom:16px;max-width:800px;width:95%">
+      <h2 style="color:#b44dff;font-size:1em;margin-bottom:8px">👥 Pokój gry</h2>
+      <div id="online-players" style="font-size:.85em"></div>
+      <div style="text-align:center;margin-top:10px">
+        <button id="btn-ready-lobby" onclick="setReady()" style="padding:10px 24px;font-size:1em;background:#b44dff;color:#fff;border:none;border-radius:8px;cursor:pointer">✋ Jestem gotowy</button>
+      </div>
+    </div>
+
+    <!-- Player count (for local) -->
+    <div style="max-width:800px;width:95%">
+      <label style="font-size:.85em;color:#aaa">Liczba graczy: <select id="player-count" style="padding:4px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:4px">
+        <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+      </select></label>
+      <div id="player-names" style="margin:8px 0"></div>
+      <button id="btn-start" style="width:100%;padding:12px;font-size:1.1em">🎮 Rozpocznij grę</button>
+    </div>
+
+    <!-- Local mode -->
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #333;text-align:center;max-width:800px;width:95%">
+      <button id="btn-local" onclick="setLocalMode()" style="padding:10px 24px;background:#555;color:#eee;border:none;border-radius:8px;cursor:pointer;font-size:.95em">👥 Gra lokalna (hot-seat)</button>
+      <p style="color:#666;font-size:.75em;margin-top:4px">Gracze na jednym urządzeniu, przełączanie tur.</p>
+    </div>
+
+    <div id="online-status" style="font-size:.85em;color:#888;margin-top:8px"></div>
   </div>
 
   <div id="transition-screen" style="display:none">
@@ -3594,12 +3642,11 @@ function handleClientMessage(data) {
     myPlayerId = data.playerId;
     document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
   }
-  if (data.type === 'snd' && data.snd) { _playSnd(data.snd); }
   if (data.type === 'state') {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if (data.snd) _playSnd(data.snd);
+    if(data.snd&&data.snd.length)data.snd.forEach(function(s){if(s.indexOf('card:')===0){var code=s.slice(5);if(window.CARD_SOUNDS&&window.CARD_SOUNDS[code]){try{var c=window.CARD_SOUNDS[code].cloneNode();c.volume=0.5;c.play().catch(function(){});}catch(e){}}else{try{var a=new Audio('sounds/cards/'+code+'.wav');a.onerror=function(){var a2=new Audio('sounds/cards/'+code+'.mp3');a2.volume=0.5;a2.play().catch(function(){});};a.volume=0.5;a.play().catch(function(){});}catch(e){}}}else{playSound(s);}});
     render();
   }
   if (data.type === 'start') {
@@ -3615,20 +3662,12 @@ function handleClientMessage(data) {
 
 window._soundQueue = window._soundQueue || [];
 function broadcastState() {
-  var snd = _sndQ; _sndQ = [];
-  if (snd.length) connections.forEach(function(c) { if (c.open) c.send({type:"snd", snd:snd}); });
-  var stateStr = JSON.stringify(G);
-  connections.forEach(function(c) {
-    if (c.open) c.send({type:"state", state: stateStr, log: actionLog});
+  const stateStr = JSON.stringify(G);
+  connections.forEach(c => {
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
   });
+  _sndQ = [];
 }
-
-
-
-
-
-
-
 
 // executeNetAction replaced by wrapper
 
@@ -3843,6 +3882,19 @@ document.addEventListener('keydown', e => {
     document.body.appendChild(dp);
   }
 });
+
+function loadSoundsBtn() {
+  var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
+  inp.onchange=function(){var ld=0,tt=inp.files.length;
+    Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();
+      r.onload=function(){var a=new Audio(r.result);
+        if(c.toLowerCase()==='menu'){if(window._lobM)window._lobM.pause();window._lobM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}
+        else{window.CARD_SOUNDS[c]=a;}
+        ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';
+      };r.readAsDataURL(f);
+    });
+  };inp.click();
+}
 </script>
 </body>
 </html>
