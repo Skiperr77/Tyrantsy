@@ -592,6 +592,48 @@ document.addEventListener('keydown', e => {
     document.body.appendChild(dp);
   }
 });
+
+const CARD_SOUNDS = {};
+let lobbyMusic = null;
+let musicMuted = false;
+
+document.getElementById('btn-load-sounds')?.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.wav,.mp3,.ogg,.flac';
+  input.multiple = true;
+  input.onchange = () => {
+    let loaded = 0;
+    for (const file of input.files) {
+      const code = file.name.split('.')[0];
+      if (code.toLowerCase() === 'menu') {
+        const url = URL.createObjectURL(file);
+        if (lobbyMusic) lobbyMusic.pause();
+        lobbyMusic = new Audio(url);
+        lobbyMusic.loop = true; lobbyMusic.volume = 0.3;
+        if (!musicMuted) lobbyMusic.play().catch(()=>{});
+        loaded++;
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          CARD_SOUNDS[code] = new Audio(reader.result);
+          loaded++;
+          document.getElementById('map-status').textContent = '🔊 ' + loaded + '/' + input.files.length;
+          document.getElementById('map-status').style.color = '#4ecdc4';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+  input.click();
+});
+
+function toggleMusic() {
+  musicMuted = !musicMuted;
+  const el = document.getElementById('music-toggle');
+  if (musicMuted) { if (lobbyMusic) lobbyMusic.pause(); if (el) el.textContent = '🔇'; }
+  else { if (lobbyMusic) lobbyMusic.play().catch(()=>{}); if (el) el.textContent = '🔊'; }
+}
 </script>
 </head>
 <body>
@@ -667,6 +709,8 @@ document.addEventListener('keydown', e => {
     </details>
     <button id="btn-load-map">📂 Wczytaj mapę</button>
     <button id="btn-load-cards">🃏 Wczytaj karty</button>
+    <button id="btn-load-sounds">🔊 Wczytaj dźwięki</button>
+    <span id="music-toggle" onclick="toggleMusic()" style="cursor:pointer;font-size:1.5em;margin-left:8px">🔊</span>
     <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
     <div id="deck-pick-section" style="display:none">
       <p style="font-size:.85em;color:#b44dff;margin:4px 0">Wybierz 2 talie do gry:</p>
