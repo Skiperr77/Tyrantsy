@@ -275,6 +275,7 @@ function joinGame() {
 }
 
 function connectToHost() {
+  document.querySelectorAll('button[onclick*=connectToHost]').forEach(function(b){b.disabled=true;b.textContent='Łączenie...'});
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer();
@@ -3189,7 +3190,7 @@ const SOUNDS = {
   coin: new Audio('sounds/coin.mp3')
 };
 function playSound(name) {
-  if (typeof isOnline!=='undefined' && isOnline && typeof isHost!=='undefined' && isHost) (window._sndQ=window._sndQ||[]).push(name);
+  (window._sndQ=window._sndQ||[]).push(name);
   if (isOnline && isHost) window._soundQueue.push(name);
   if (soundMuted) return;
   const s = SOUNDS[name];
@@ -3527,6 +3528,7 @@ function joinGame() {
 }
 
 function connectToHost() {
+  document.querySelectorAll('button[onclick*=connectToHost]').forEach(function(b){b.disabled=true;b.textContent='Łączenie...'});
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer();
