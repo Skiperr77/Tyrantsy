@@ -597,7 +597,9 @@ const CARD_SOUNDS = {};
 let lobbyMusic = null;
 let musicMuted = false;
 
-document.getElementById('btn-load-sounds')?.addEventListener('click', () => {
+// sound loader moved to onclick
+
+function loadSounds() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.wav,.mp3,.ogg,.flac';
@@ -626,7 +628,7 @@ document.getElementById('btn-load-sounds')?.addEventListener('click', () => {
     }
   };
   input.click();
-});
+}
 
 function toggleMusic() {
   musicMuted = !musicMuted;
@@ -709,7 +711,7 @@ function toggleMusic() {
     </details>
     <button id="btn-load-map">📂 Wczytaj mapę</button>
     <button id="btn-load-cards">🃏 Wczytaj karty</button>
-    <button id="btn-load-sounds">🔊 Wczytaj dźwięki</button>
+    <button id="btn-load-sounds" onclick="loadSounds()">🔊 Wczytaj dźwięki</button>
     <span id="music-toggle" onclick="toggleMusic()" style="cursor:pointer;font-size:1.5em;margin-left:8px">🔊</span>
     <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
     <div id="deck-pick-section" style="display:none">
