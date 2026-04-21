@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants v15</title>
+<title>Tyrants v16</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -592,50 +592,6 @@ document.addEventListener('keydown', e => {
     document.body.appendChild(dp);
   }
 });
-
-const CARD_SOUNDS = {};
-let lobbyMusic = null;
-let musicMuted = false;
-
-// sound loader moved to onclick
-
-function loadSounds() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.wav,.mp3,.ogg,.flac';
-  input.multiple = true;
-  input.onchange = () => {
-    let loaded = 0;
-    for (const file of input.files) {
-      const code = file.name.split('.')[0];
-      if (code.toLowerCase() === 'menu') {
-        const url = URL.createObjectURL(file);
-        if (lobbyMusic) lobbyMusic.pause();
-        lobbyMusic = new Audio(url);
-        lobbyMusic.loop = true; lobbyMusic.volume = 0.3;
-        if (!musicMuted) lobbyMusic.play().catch(()=>{});
-        loaded++;
-      } else {
-        const reader = new FileReader();
-        reader.onload = () => {
-          CARD_SOUNDS[code] = new Audio(reader.result);
-          loaded++;
-          document.getElementById('map-status').textContent = '🔊 ' + loaded + '/' + input.files.length;
-          document.getElementById('map-status').style.color = '#4ecdc4';
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-  };
-  input.click();
-}
-
-function toggleMusic() {
-  musicMuted = !musicMuted;
-  const el = document.getElementById('music-toggle');
-  if (musicMuted) { if (lobbyMusic) lobbyMusic.pause(); if (el) el.textContent = '🔇'; }
-  else { if (lobbyMusic) lobbyMusic.play().catch(()=>{}); if (el) el.textContent = '🔊'; }
-}
 </script>
 </head>
 <body>
@@ -712,19 +668,18 @@ function toggleMusic() {
     <button id="btn-load-map">📂 Wczytaj mapę</button>
     <button id="btn-load-cards">🃏 Wczytaj karty</button>
     <button id="btn-load-sounds" onclick="
-  if(!window.CARD_SOUNDS)window.CARD_SOUNDS={};
-  var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
-  inp.onchange=function(){var loaded=0;var total=inp.files.length;
-    Array.from(inp.files).forEach(function(f){var code=f.name.split('.')[0];
-      var r=new FileReader();r.onload=function(){
-        var audio=new Audio(r.result);
-        if(code.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=audio;audio.loop=true;audio.volume=0.3;audio.play().catch(function(){});}
-        else{window.CARD_SOUNDS[code]=audio;}
-        loaded++;document.getElementById('map-status').textContent='🔊 '+loaded+'/'+total;document.getElementById('map-status').style.color='#4ecdc4';
-      };r.readAsDataURL(f);
-    });
-  };inp.click();
-">🔊 Wczytaj dźwięki</button>
+      var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
+      inp.onchange=function(){var loaded=0;var total=inp.files.length;
+        Array.from(inp.files).forEach(function(f){var code=f.name.split('.')[0];
+          var r=new FileReader();r.onload=function(){
+            var audio=new Audio(r.result);
+            if(code.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=audio;audio.loop=true;audio.volume=0.3;audio.play().catch(function(){});}
+            else{window.CARD_SOUNDS[code]=audio;}
+            loaded++;document.getElementById('map-status').textContent='🔊 '+loaded+'/'+total;document.getElementById('map-status').style.color='#4ecdc4';
+          };r.readAsDataURL(f);
+        });
+      };inp.click();
+    ">🔊 Wczytaj dźwięki</button>
     <span id="music-toggle" onclick="window.musicMuted=!window.musicMuted;if(window.musicMuted){if(window.lobbyMusic)window.lobbyMusic.pause();this.textContent='🔇';}else{if(window.lobbyMusic)window.lobbyMusic.play().catch(function(){});this.textContent='🔊';}" style="cursor:pointer;font-size:1.5em;margin-left:8px">🔊</span>
     <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
     <div id="deck-pick-section" style="display:none">
@@ -788,6 +743,7 @@ function toggleMusic() {
 </div>
 
 <script>
+var _sndQ = [];
 window.CARD_SOUNDS = window.CARD_SOUNDS || {};
 const IMG_STORE = {};
 function storeImg(card) {
@@ -1188,7 +1144,7 @@ function playCard(cardId) {
   if (idx === -1) return;
   const card = p.hand.splice(idx, 1)[0];
   p.played.push(card);
-  var _sc=(card.name||'').slice(0,3).trim(); if(window.CARD_SOUNDS[_sc]){try{var _ca=window.CARD_SOUNDS[_sc].cloneNode();_ca.volume=0.5;_ca.play().catch(function(){});}catch(e){}}
+  var _sc=(card.name||'').slice(0,3).trim(); if(_sc) _sndQ.push('card:'+_sc);
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
@@ -3519,6 +3475,7 @@ const SOUNDS = {
   coin: new Audio('sounds/coin.mp3')
 };
 function playSound(name) {
+  _sndQ.push(name);
   if (isOnline && isHost) window._soundQueue.push(name);
   if (soundMuted) return;
   const s = SOUNDS[name];
@@ -3534,12 +3491,14 @@ function playSound(name) {
   }
 }
 function playDeathSound() {
+  var _dn2 = Math.random()<0.5?"death1":Math.random()<0.75?"death2":"death3"; _sndQ.push(_dn2);
   const r = Math.random();
   if (r < 0.50) playSound('death1');
   else if (r < 0.80) playSound('death2');
   else playSound('death3');
 }
 function playDeploySound() {
+  var _dn = Math.random()<0.45?"deploy1":Math.random()<0.82?"deploy2":"deploy3"; _sndQ.push(_dn);
   const r = Math.random();
   if (r < 0.45) playSound('deploy1');
   else if (r < 0.90) playSound('deploy2');
@@ -3915,37 +3874,13 @@ function handleClientMessage(data) {
     document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
   }
   if (data.type === 'state') {
-    const newG = JSON.parse(data.state);
-    // Detect changes BEFORE updating G
-    if (G && G.players) {
-      try {
-        // Card played - check all players
-        for (let _i=0; _i<newG.players.length; _i++) {
-          const oldLen = G.players[_i]?.played?.length || 0;
-          const newLen = newG.players[_i]?.played?.length || 0;
-          if (newLen > oldLen) {
-            const card = newG.players[_i].played[newLen - 1];
-            const code = (card?.name||'').slice(0,3).trim();
-            if (window.CARD_SOUNDS && window.CARD_SOUNDS[code]) { try { var _c=window.CARD_SOUNDS[code].cloneNode(); _c.volume=0.5; _c.play().catch(function(){}); } catch(e){} }
-          }
-        }
-        // Deploy
-        const oldT = G.players.reduce(function(s,p){return s+(40-p.troopsInBarracks)},0);
-        const newT = newG.players.reduce(function(s,p){return s+(40-p.troopsInBarracks)},0);
-        if (newT > oldT) playDeploySound();
-        // Kill
-        const oldK = G.players.reduce(function(s,p){return s+p.trophyHall.length},0);
-        const newK = newG.players.reduce(function(s,p){return s+p.trophyHall.length},0);
-        if (newK > oldK) playDeathSound();
-        // Buy
-        const oldM = G.market ? G.market.map(function(c){return c.id}).join(',') : '';
-        const newM = newG.market ? newG.market.map(function(c){return c.id}).join(',') : '';
-        if (oldM !== newM && oldM !== '') playSound('coin');
-      } catch(e) {}
-    }
-    G = newG;
+    G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
+    if (data.snd && data.snd.length) data.snd.forEach(function(s){
+      if(s.indexOf('card:')===0){ var code=s.slice(5); if(window.CARD_SOUNDS&&window.CARD_SOUNDS[code]){try{var c=window.CARD_SOUNDS[code].cloneNode();c.volume=0.5;c.play().catch(function(){});}catch(e){}} }
+      else { playSound(s); }
+    });
     render();
   }
   if (data.type === 'start') {
@@ -3963,8 +3898,9 @@ window._soundQueue = window._soundQueue || [];
 function broadcastState() {
   const stateStr = JSON.stringify(G);
   connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog});
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
   });
+  _sndQ = [];
 }
 
 // executeNetAction replaced by wrapper
@@ -3987,6 +3923,73 @@ startGameWithDecks = function(decks) {
 // === NETWORK ACTION WRAPPER ===
 // Wrap all game-modifying functions for online sync
 
+const _local = {
+  resetTurn,
+  playCard, playAllCards, buyCard, endTurn, skipPending, chooseOption,
+  spendDeploy, spendAssassinate, spendReturnTroop, spendReturnSpy,
+  placeSpy, promoteCard, devourCard, devourFromHand, devourFromInnerCircle,
+  recruitMadman, recruitMadmanAdjacent, supplantWhite, supplantWhitePresence,
+  supplant, assassinateWhite, assassinateAtSpy, returnOwnSpy, returnEnemy, returnEnemySpy,
+  moveEnemyPick, moveEnemyPlace, pickFromTrophy, deployTrophyTroop,
+  supplantInArea, returnSpyForSupplant, finishReturnSpies, returnSpySupplantSingle,
+  placeSpyBonusStrength, promoteFromDiscard, devourMarketReplace,
+  madmanDiscard, setupDeploy
+};
+
+function netWrap(name, fn) {
+  return function(...args) {
+    // Block if not your turn (online), except setupDeploy which has its own turn logic
+    if (isOnline && G && G.phase === 'play' && G.currentPlayer !== myPlayerId && name !== 'setupDeploy') return;
+    if (isOnline && G && G.phase === 'setup_deploy' && G.currentPlayer !== myPlayerId) return;
+    if (isOnline && !isHost && hostConn?.open) {
+      hostConn.send({type:'action', name, args});
+      return;
+    }
+    fn(...args);
+    if (isOnline && isHost) broadcastState();
+  };
+}
+
+// Rewrap all functions
+playCard = netWrap('playCard', _local.playCard);
+playAllCards = netWrap('playAllCards', _local.playAllCards);
+buyCard = netWrap('buyCard', _local.buyCard);
+endTurn = netWrap('endTurn', _local.endTurn);
+resetTurn = netWrap('resetTurn', _local.resetTurn);
+skipPending = netWrap('skipPending', _local.skipPending);
+chooseOption = netWrap('chooseOption', _local.chooseOption);
+spendDeploy = netWrap('spendDeploy', _local.spendDeploy);
+spendAssassinate = netWrap('spendAssassinate', _local.spendAssassinate);
+spendReturnTroop = netWrap('spendReturnTroop', _local.spendReturnTroop);
+spendReturnSpy = netWrap('spendReturnSpy', _local.spendReturnSpy);
+placeSpy = netWrap('placeSpy', _local.placeSpy);
+promoteCard = netWrap('promoteCard', _local.promoteCard);
+devourCard = netWrap('devourCard', _local.devourCard);
+devourFromHand = netWrap('devourFromHand', _local.devourFromHand);
+devourFromInnerCircle = netWrap('devourFromInnerCircle', _local.devourFromInnerCircle);
+recruitMadman = netWrap('recruitMadman', _local.recruitMadman);
+recruitMadmanAdjacent = netWrap('recruitMadmanAdjacent', _local.recruitMadmanAdjacent);
+supplantWhite = netWrap('supplantWhite', _local.supplantWhite);
+supplantWhitePresence = netWrap('supplantWhitePresence', _local.supplantWhitePresence);
+supplant = netWrap('supplant', _local.supplant);
+assassinateWhite = netWrap('assassinateWhite', _local.assassinateWhite);
+assassinateAtSpy = netWrap('assassinateAtSpy', _local.assassinateAtSpy);
+returnOwnSpy = netWrap('returnOwnSpy', _local.returnOwnSpy);
+returnEnemy = netWrap('returnEnemy', _local.returnEnemy);
+returnEnemySpy = netWrap('returnEnemySpy', _local.returnEnemySpy);
+moveEnemyPick = netWrap('moveEnemyPick', _local.moveEnemyPick);
+moveEnemyPlace = netWrap('moveEnemyPlace', _local.moveEnemyPlace);
+pickFromTrophy = netWrap('pickFromTrophy', _local.pickFromTrophy);
+deployTrophyTroop = netWrap('deployTrophyTroop', _local.deployTrophyTroop);
+supplantInArea = netWrap('supplantInArea', _local.supplantInArea);
+returnSpyForSupplant = netWrap('returnSpyForSupplant', _local.returnSpyForSupplant);
+finishReturnSpies = netWrap('finishReturnSpies', _local.finishReturnSpies);
+returnSpySupplantSingle = netWrap('returnSpySupplantSingle', _local.returnSpySupplantSingle);
+placeSpyBonusStrength = netWrap('placeSpyBonusStrength', _local.placeSpyBonusStrength);
+promoteFromDiscard = netWrap('promoteFromDiscard', _local.promoteFromDiscard);
+devourMarketReplace = netWrap('devourMarketReplace', _local.devourMarketReplace);
+madmanDiscard = netWrap('madmanDiscard', _local.madmanDiscard);
+setupDeploy = netWrap('setupDeploy', _local.setupDeploy);
 
 // Fix host message handler to use _local functions
 function handleHostMessage(conn, data) {
