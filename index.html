@@ -1599,6 +1599,12 @@ function deployTrophyTroop(nodeId, slotIdx) {
 // Force discard with onDiscard passive check
 function forceDiscard(playerIdx) {
   const p2 = G.players[playerIdx];
+  if (p2.hand.length <= 3) return;
+  if (!G._discardQueue) G._discardQueue = {};
+  G._discardQueue[playerIdx] = (G._discardQueue[playerIdx] || 0) + 1;
+  logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: musi odrzucić kartę`);
+  return;
+  // OLD CODE BELOW (dead)
   if (p2.hand.length === 0) return;
   const onDiscardIdx = p2.hand.findIndex(c => c.onDiscard);
   let discarded;
@@ -1611,6 +1617,24 @@ function forceDiscard(playerIdx) {
     else if (od.type === 'opponent_discard') { p2.discard.push(discarded); const att=cp(); if(att.hand.length>0){const ad=att.hand.pop();att.discard.push(ad);logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: ${discarded.name} → ${att.name} też odrzuca!`);} }
     else { p2.discard.push(discarded); logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: odrzuca (${discarded.name})`); }
   } else { p2.discard.push(discarded); logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: odrzuca (${discarded.name})`); }
+}
+
+function resolveDiscard(cardId) {
+  if (!G.pending || G.pending.type !== 'forced_discard') return;
+  const pi = G.currentPlayer, p = G.players[pi];
+  const idx = p.hand.findIndex(c => c.id === cardId);
+  if (idx === -1) return;
+  saveUndo();
+  const discarded = p.hand.splice(idx, 1)[0];
+  const od = discarded.onDiscard;
+  if (od) {
+    if (od.type === 'draw') { drawCards(p, od.value||2); logAction(`<span style="color:${COLORS[pi]}">${p.name}</span>: odrzuca ${discarded.name} → dobiera ${od.value||2}!`); p.discard.push(discarded); }
+    else if (od.type === 'promote_self') { p.innerCircle.push(discarded); logAction(`<span style="color:${COLORS[pi]}">${p.name}</span>: ${discarded.name} → awansuje!`); }
+    else { p.discard.push(discarded); logAction(`<span style="color:${COLORS[pi]}">${p.name}</span>: odrzuca ${discarded.name}`); }
+  } else { p.discard.push(discarded); logAction(`<span style="color:${COLORS[pi]}">${p.name}</span>: odrzuca ${discarded.name}`); }
+  G.pending.remaining--;
+  if (G.pending.remaining <= 0) G.pending = null;
+  render();
 }
 
 function chooseOpponentDiscard(playerIdx) {
@@ -2728,6 +2752,14 @@ function render(){
   const myP = (isOnline && myPlayerId >= 0) ? G.players[myPlayerId] : p;
   document.getElementById('res-tokens').textContent=`🏆 ${myP.vpTokens}`;
   document.getElementById('scores').innerHTML=scores.map((s,i)=>`<span class="score-badge ${i===pi?'active':''}" style="border:2px solid ${COLORS[i]};position:relative;cursor:pointer" onclick="toggleScoreDetail(${i})" onmouseleave="hideScoreDetail()">${s.name}: ${s.total}<div class="score-detail" id="sd-${i}">Talia: ${s.deckPZ}<br>Awanse: ${s.innerPZ}<br>Kontrola: ${s.areaPZ}<br>Pełna kontrola: +${s.fullControlBonus}<br>Trofea: ${s.trophyPZ}<br>Żetony PZ: ${s.tokenPZ}<br><b>Razem: ${s.total}</b></div></span>`).join('');
+  if (G.phase === 'play' && !G.pending && G._discardQueue) {
+    const pi = G.currentPlayer;
+    const count = G._discardQueue[pi] || 0;
+    const maxDiscard = Math.max(0, cp().hand.length - 3);
+    const actual = Math.min(count, maxDiscard);
+    if (actual > 0) { G._discardQueue[pi] = 0; G.pending = {type:'forced_discard', remaining: actual}; }
+    else { delete G._discardQueue[pi]; }
+  }
   renderPrompt();
   if (G.pending && !previewCard && (!isOnline || G.currentPlayer===myPlayerId)) { const lp = cp().played; if (lp.length > 0) showPreview(lp[lp.length-1]); }
   // Auto-show last played card preview when pending
@@ -2814,7 +2846,7 @@ function renderInfo(){
 function renderPrompt(){
   const el=document.getElementById('action-prompt');
   if(G.phase==='setup_deploy'){el.classList.remove('hidden');el.innerHTML=`🏰 ${cp().name}: Wyślij oddział do obszaru początkowego`;return;}
-  if(G.pending){const lb={deploy:'Wyślij oddział na puste pole',assassinate:'Zlikwiduj wrogi oddział',place_spy:'Kliknij miasto aby umieścić szpiega',promote:'Kliknij zagraną kartę aby awansować',return_troop:'Kliknij wrogi oddział aby wycofać',devour:'Przeciągnij/kliknij kartę aby pożreć',recruit_madman:'Wybierz przeciwnika',madman_discard:'Odrzuć kartę z ręki aby zwrócić Wyrzutka (lub Pomiń)',devour_hand:'Pożryj kartę z ręki',choose_opponent_discard:'Wybierz przeciwnika do odrzucenia',play_from_market:'Zagraj kartę z rynku (koszt ≤4)',play_from_inner_circle:'Zagraj z wew. kręgu',place_spy_opponents_discard:'Umieść szpiega (wrogowie odrzucają)',assassinate_then_discard:'Zlikwiduj (gracz odrzuca)',assassinate_area_gain_influence:'Zlikwiduj z 1 obszaru (+1💎)',recruit_free_aspect:'Zwerbuj z aspektem za darmo',promote_aspect:'Awansuj kartę z aspektem',devour_market_replace:'Kliknij kartę z rynku aby pożreć i zastąpić',devour_market:'Kliknij kartę z rynku aby pożreć',recruit_free_max_cost:'Zwerbuj kartę za darmo (koszt ≤ limit)',deploy_from_trophy:'Weź oddział z sali trofeów',deploy_white_from_trophy:'Weź biały oddział z sali trofeów',recruit_madman_adjacent:'Wybierz przyległego przeciwnika',supplant:'Wyprzyj oddział (przyległy)',supplant_white:'Kliknij biały oddział aby wyprzeć',supplant_white_presence:'Wyprzyj przyległy biały oddział',assassinate_white:'Zlikwiduj biały oddział',assassinate_white_area:'Zlikwiduj białe z 1 obszaru',return_own_spy:'Kliknij swojego szpiega aby wycofać',return_spy_supplant_single:'Kliknij szpiega aby wycofać i wyprzeć',place_spy_bonus_strength:'Umieść szpiega (+1⚔️ jeśli wróg)',place_spy_bonus_if_enemy_spy:'Umieść szpiega (+3⚔️ jeśli wrogi szpieg)',place_spy_bonus_influence:'Umieść szpiega (+2💎 jeśli wrogi oddział)',place_spy_steal_trophies:'Umieść szpiega (kradnij z trofeów wroga)',return_enemy:'Wycofaj oddział lub szpiega przeciwnika',assassinate_at_spy:'Zlikwiduj oddział w obszarze szpiega',return_spies_supplant:'Kliknij swoich szpiegów aby wycofać, potem Gotowe',promote_any:'Awansuj kartę (zagrane/ręka/odrzucone)',devour_self_cost:'Pożryj tę kartę?',promote_deck:'Awansuj karty z talii',devour_inner_circle:'Pożryj kartę z wew. kręgu',promote_from_discard:'Awansuj kartę z odrzuconych',move_enemy:'Kliknij wrogi oddział aby przesunąć',move_enemy_place:'Kliknij puste pole aby umieścić',supplant_in_areas:'Wyprzyj oddział w zaznaczonym obszarze',deploy_trophy_place:'Wyślij oddział z trofeów na puste pole',choose_one:'Wybierz jedną opcję'};el.classList.remove('hidden');let html=`⚡ ${lb[G.pending.type]||G.pending.type} (${G.pending.remaining||''}) <button onclick="skipPending()">Pomiń</button>`;
+  if(G.pending){const lb={deploy:'Wyślij oddział na puste pole',assassinate:'Zlikwiduj wrogi oddział',place_spy:'Kliknij miasto aby umieścić szpiega',promote:'Kliknij zagraną kartę aby awansować',return_troop:'Kliknij wrogi oddział aby wycofać',devour:'Przeciągnij/kliknij kartę aby pożreć',recruit_madman:'Wybierz przeciwnika',madman_discard:'Odrzuć kartę z ręki aby zwrócić Wyrzutka (lub Pomiń)',devour_hand:'Pożryj kartę z ręki',forced_discard:'Musisz odrzucić kartę',choose_opponent_discard:'Wybierz przeciwnika do odrzucenia',play_from_market:'Zagraj kartę z rynku (koszt ≤4)',play_from_inner_circle:'Zagraj z wew. kręgu',place_spy_opponents_discard:'Umieść szpiega (wrogowie odrzucają)',assassinate_then_discard:'Zlikwiduj (gracz odrzuca)',assassinate_area_gain_influence:'Zlikwiduj z 1 obszaru (+1💎)',recruit_free_aspect:'Zwerbuj z aspektem za darmo',promote_aspect:'Awansuj kartę z aspektem',devour_market_replace:'Kliknij kartę z rynku aby pożreć i zastąpić',devour_market:'Kliknij kartę z rynku aby pożreć',recruit_free_max_cost:'Zwerbuj kartę za darmo (koszt ≤ limit)',deploy_from_trophy:'Weź oddział z sali trofeów',deploy_white_from_trophy:'Weź biały oddział z sali trofeów',recruit_madman_adjacent:'Wybierz przyległego przeciwnika',supplant:'Wyprzyj oddział (przyległy)',supplant_white:'Kliknij biały oddział aby wyprzeć',supplant_white_presence:'Wyprzyj przyległy biały oddział',assassinate_white:'Zlikwiduj biały oddział',assassinate_white_area:'Zlikwiduj białe z 1 obszaru',return_own_spy:'Kliknij swojego szpiega aby wycofać',return_spy_supplant_single:'Kliknij szpiega aby wycofać i wyprzeć',place_spy_bonus_strength:'Umieść szpiega (+1⚔️ jeśli wróg)',place_spy_bonus_if_enemy_spy:'Umieść szpiega (+3⚔️ jeśli wrogi szpieg)',place_spy_bonus_influence:'Umieść szpiega (+2💎 jeśli wrogi oddział)',place_spy_steal_trophies:'Umieść szpiega (kradnij z trofeów wroga)',return_enemy:'Wycofaj oddział lub szpiega przeciwnika',assassinate_at_spy:'Zlikwiduj oddział w obszarze szpiega',return_spies_supplant:'Kliknij swoich szpiegów aby wycofać, potem Gotowe',promote_any:'Awansuj kartę (zagrane/ręka/odrzucone)',devour_self_cost:'Pożryj tę kartę?',promote_deck:'Awansuj karty z talii',devour_inner_circle:'Pożryj kartę z wew. kręgu',promote_from_discard:'Awansuj kartę z odrzuconych',move_enemy:'Kliknij wrogi oddział aby przesunąć',move_enemy_place:'Kliknij puste pole aby umieścić',supplant_in_areas:'Wyprzyj oddział w zaznaczonym obszarze',deploy_trophy_place:'Wyślij oddział z trofeów na puste pole',choose_one:'Wybierz jedną opcję'};el.classList.remove('hidden');let html=`⚡ ${lb[G.pending.type]||G.pending.type} (${G.pending.remaining||''}) <button onclick="skipPending()">Pomiń</button>`;
     if(G.pending.type==='return_spies_supplant'){html+=`<div style="margin-top:4px"><button onclick="finishReturnSpies()" style="background:#4ecdc4">✓ Gotowe (wycofano ${G.pending.returnedAreas.length})</button></div>`;}
     if(G.pending.type==='promote_from_discard'){
       const p=cp();
