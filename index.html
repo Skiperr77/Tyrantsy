@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<script>var _sndQ=[];window.CARD_SOUNDS=window.CARD_SOUNDS||{};</script>
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants v23</title>
+<title>Tyrants v20</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -334,7 +335,16 @@ function handleClientMessage(data) {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if (data.sounds) data.sounds.forEach(s => playSound(s));
+    if (data.snd && data.snd.length) data.snd.forEach(function(s) {
+      if (s.indexOf('card:') === 0) {
+        var code = s.slice(5);
+        if (window.CARD_SOUNDS && window.CARD_SOUNDS[code]) {
+          try { var c = window.CARD_SOUNDS[code].cloneNode(); c.volume = 0.5; c.play().catch(function(){}); } catch(e) {}
+        } else {
+          try { var a = new Audio('sounds/cards/' + code + '.wav'); a.onerror = function(){ var a2 = new Audio('sounds/cards/' + code + '.mp3'); a2.volume=0.5; a2.play().catch(function(){}); }; a.volume=0.5; a.play().catch(function(){}); } catch(e) {}
+        }
+      } else { playSound(s); }
+    });
     render();
   }
   if (data.type === 'start') {
@@ -352,9 +362,9 @@ window._soundQueue = window._soundQueue || [];
 function broadcastState() {
   const stateStr = JSON.stringify(G);
   connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, sounds: window._soundQueue});
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
   });
-  window._soundQueue = [];
+  _sndQ = [];
 }
 
 // executeNetAction replaced by wrapper
@@ -645,7 +655,7 @@ document.addEventListener('keydown', e => {
     </details>
     <button id="btn-load-map">📂 Wczytaj mapę</button>
     <button id="btn-load-cards">🃏 Wczytaj karty</button>
-    <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window._lobM)window._lobM.pause();window._lobM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
+    <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
     <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
     <div id="deck-pick-section" style="display:none">
       <p style="font-size:.85em;color:#b44dff;margin:4px 0">Wybierz 2 talie do gry:</p>
@@ -708,7 +718,6 @@ document.addEventListener('keydown', e => {
 </div>
 
 <script>
-var _sndQ=[];window.CARD_SOUNDS=window.CARD_SOUNDS||{};
 const IMG_STORE = {};
 function storeImg(card) {
   if (!card || !card.image) return;
@@ -1123,7 +1132,7 @@ function playAllCards() {
   while (p.hand.length > 0 && !G.pending) {
     const card = p.hand.shift();
     p.played.push(card);
-  var _sc=(card.name||'').slice(0,3).trim();if(_sc)_sndQ.push('card:'+_sc);
+    playCardSound(card);
     logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
     applyEffects(card.effects);
     if (G.pending) break; // stop if card requires interaction
@@ -2578,7 +2587,7 @@ function renderMarket(){
   let h=`<div class="card-sm" onclick="if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(HOUSE_GUARD)" onmouseleave="clearPreview()" style="${G.influence>=HOUSE_GUARD.cost?'border-color:#b44dff':''}">${cardInner(HOUSE_GUARD)}</div>`;
   h+=`<div class="card-sm" onclick="if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(LOLTH_PRIESTESS)" onmouseleave="clearPreview()" style="${G.influence>=LOLTH_PRIESTESS.cost?'border-color:#b44dff':''}">${cardInner(LOLTH_PRIESTESS)}</div>`;
   h+=`<div style="width:1px;background:#333;margin:0 4px;flex-shrink:0"></div>`;
-  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
+  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="if(!G.market[${i}]?._hidden)showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
   mc.innerHTML=h;
   document.getElementById('market-deck-count').textContent=G.marketDeck.length;
 }
@@ -3054,7 +3063,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 
 function startGameWithDecks(selectedDecks) {
-  if(window._lobM){window._lobM.pause();window._lobM.currentTime=0;}
+  if(window.lobbyMusic){window.lobbyMusic.pause();window.lobbyMusic.currentTime=0;}
   // Filter market pool to only selected decks
   if (selectedDecks.length > 0) {
     const filtered = MARKET_POOL_DEF.filter(c => !c.deck || selectedDecks.includes(c.deck));
@@ -3132,7 +3141,6 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('btn-ready').click();
     return;
   }
-  if (e.key === ' ' && !e.ctrlKey) { e.preventDefault(); if(!isOnline || G.currentPlayer===myPlayerId) endTurn(); }
   if (e.key === 'm' && !e.ctrlKey) { toggleMute(); const mi=document.getElementById('mute-ind'); if(mi)mi.remove(); if(soundMuted){const m=document.createElement('div');m.id='mute-ind';m.style.cssText='position:fixed;top:45px;right:8px;background:rgba(0,0,0,0.7);color:#e94560;padding:2px 8px;border-radius:6px;font-size:.75em;z-index:100';m.textContent='🔇';document.body.appendChild(m);} }
   if (e.key === 'z' && !e.ctrlKey) { e.preventDefault(); playAllCards(); }
   if (e.key >= '1' && e.key <= '9' && G?.pending?.type === 'choose_one') {
@@ -3187,7 +3195,6 @@ const SOUNDS = {
 };
 function playSound(name) {
   _sndQ.push(name);
-  if (isOnline && isHost) window._soundQueue.push(name);
   if (soundMuted) return;
   const s = SOUNDS[name];
   if (!s) return;
@@ -3227,9 +3234,16 @@ function revealMarketCard(idx) {
 
 // Play card-specific sound (by 3-letter code in name)
 function playCardSound(card) {
-  if (!card || !card.name || soundMuted) return;
+  if (!card || !card.name) return;
   const code = card.name.slice(0,3).trim();
   if (!code || code.length < 2) return;
+  _sndQ.push('card:' + code);
+  if (soundMuted) return;
+  // Try loaded CARD_SOUNDS first, then fallback to file
+  if (window.CARD_SOUNDS[code]) {
+    try { var c = window.CARD_SOUNDS[code].cloneNode(); c.volume=0.5; c.play().catch(function(){}); } catch(e) {}
+    return;
+  }
   try {
     const audio = new Audio('sounds/cards/' + code + '.wav');
     audio.onerror = () => { const a2 = new Audio('sounds/cards/' + code + '.mp3'); a2.volume=0.5; a2.play().catch(()=>{}); };
@@ -3583,10 +3597,7 @@ function handleClientMessage(data) {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if(data.snd&&data.snd.length)data.snd.forEach(function(s){
-      if(s.indexOf('card:')===0){var code=s.slice(5);if(window.CARD_SOUNDS[code]){try{window.CARD_SOUNDS[code].cloneNode().play().catch(function(){});}catch(e){}}}
-      else{playSound(s);}
-    });
+    if(data.snd&&data.snd.length)data.snd.forEach(function(s){if(s.indexOf('card:')===0){var code=s.slice(5);if(window.CARD_SOUNDS&&window.CARD_SOUNDS[code]){try{var c=window.CARD_SOUNDS[code].cloneNode();c.volume=0.5;c.play().catch(function(){});}catch(e){}}else{try{var a=new Audio('sounds/cards/'+code+'.wav');a.onerror=function(){var a2=new Audio('sounds/cards/'+code+'.mp3');a2.volume=0.5;a2.play().catch(function(){});};a.volume=0.5;a.play().catch(function(){});}catch(e){}}}else{playSound(s);}});
     render();
   }
   if (data.type === 'start') {
@@ -3604,8 +3615,9 @@ window._soundQueue = window._soundQueue || [];
 function broadcastState() {
   const stateStr = JSON.stringify(G);
   connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog});
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
   });
+  _sndQ = [];
 }
 
 // executeNetAction replaced by wrapper
@@ -3703,7 +3715,7 @@ function handleHostMessage(conn, data) {
     lobbyPlayers.push({name: data.name || 'Gracz '+(conn.playerId+1), ready:false, conn});
     conn.send({type:'assignId', playerId: conn.playerId});
     updateLobby();
-    if (G) conn.send({type:'state', state: JSON.stringify(G), log: actionLog, snd: _sndQ});
+    if (G) conn.send({type:'state', state: JSON.stringify(G), log: actionLog});
   }
   if (data.type === 'ready') {
     const lp = lobbyPlayers.find(p => p.conn === conn);
@@ -3733,7 +3745,6 @@ function updateLobby() {
     }
   };
   connections.forEach(c => { if(c.open) c.send(data); });
-  _sndQ=[];
   renderLobbyStatus();
 }
 
