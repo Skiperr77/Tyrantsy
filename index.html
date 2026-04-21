@@ -413,8 +413,11 @@ function netWrap(name, fn) {
       hostConn.send({type:'action', name, args});
       return;
     }
+    var _before = _sndQ.length;
     fn(...args);
     if (isOnline && isHost) broadcastState();
+    // Don't let sounds accumulate between broadcasts
+    
   };
 }
 
@@ -1144,7 +1147,7 @@ function playCard(cardId) {
   if (idx === -1) return;
   const card = p.hand.splice(idx, 1)[0];
   p.played.push(card);
-  var _sc=(card.name||'').slice(0,3).trim(); if(_sc) _sndQ.push('card:'+_sc);
+  var _sc=(card.name||'').slice(0,3).trim(); if(_sc && isOnline && isHost) _sndQ.push('card:'+_sc);
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
@@ -3475,7 +3478,7 @@ const SOUNDS = {
   coin: new Audio('sounds/coin.mp3')
 };
 function playSound(name) {
-  _sndQ.push(name);
+  if (isOnline && isHost) _sndQ.push(name);
   if (isOnline && isHost) window._soundQueue.push(name);
   if (soundMuted) return;
   const s = SOUNDS[name];
@@ -3491,14 +3494,12 @@ function playSound(name) {
   }
 }
 function playDeathSound() {
-  var _dn2 = Math.random()<0.5?"death1":Math.random()<0.75?"death2":"death3"; _sndQ.push(_dn2);
   const r = Math.random();
   if (r < 0.50) playSound('death1');
   else if (r < 0.80) playSound('death2');
   else playSound('death3');
 }
 function playDeploySound() {
-  var _dn = Math.random()<0.45?"deploy1":Math.random()<0.82?"deploy2":"deploy3"; _sndQ.push(_dn);
   const r = Math.random();
   if (r < 0.45) playSound('deploy1');
   else if (r < 0.90) playSound('deploy2');
@@ -3945,8 +3946,11 @@ function netWrap(name, fn) {
       hostConn.send({type:'action', name, args});
       return;
     }
+    var _before = _sndQ.length;
     fn(...args);
     if (isOnline && isHost) broadcastState();
+    // Don't let sounds accumulate between broadcasts
+    
   };
 }
 
