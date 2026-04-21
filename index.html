@@ -3391,7 +3391,7 @@ document.getElementById('btn-ready').addEventListener('click', () => {
   render();
 });
 
-document.getElementById('btn-end-turn').addEventListener('click', () => endTurn());
+document.getElementById('btn-end-turn').addEventListener('click', endTurn);
 // Disable end turn button when not your turn (online)
 const _origRender = render;
 const _patchRender = function() {
