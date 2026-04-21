@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants v18</title>
+<title>Tyrants v19</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -335,8 +335,8 @@ function handleClientMessage(data) {
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
     if (data.sounds) data.sounds.forEach(s => playSound(s));
-    if (data.snd) data.snd.forEach(function(s){
-      if(s.indexOf('card:')===0){var code=s.slice(5);if(window._cS&&window._cS[code]){try{window._cS[code].cloneNode().play().catch(function(){});}catch(e){}}}
+    if (data.snd && data.snd.length) data.snd.forEach(function(s){
+      if(s.indexOf('card:')===0){var code=s.slice(5);if(window._cS&&window._cS[code]){try{var _a=window._cS[code].cloneNode();_a.volume=0.5;_a.play().catch(function(){});}catch(e){}}}
       else{playSound(s);}
     });
     render();
@@ -1112,7 +1112,7 @@ function playCard(cardId) {
   if (idx === -1) return;
   const card = p.hand.splice(idx, 1)[0];
   p.played.push(card);
-  try{var _z=(card.name||'').slice(0,3).trim();if(window._cS&&window._cS[_z]){window._cS[_z].cloneNode().play().catch(function(){});}if(isOnline&&isHost&&_z)window._csQ=(window._csQ||[]),window._csQ.push('card:'+_z);}catch(e){}
+  try{var _z=(card.name||'').slice(0,3).trim();if(window._cS&&window._cS[_z]){window._cS[_z].cloneNode().play().catch(function(){});}if(typeof isOnline!=='undefined'&&isOnline&&typeof isHost!=='undefined'&&isHost&&_z)(window._sndQ=window._sndQ||[]).push('card:'+_z);}catch(e){}
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
@@ -3189,6 +3189,7 @@ const SOUNDS = {
   coin: new Audio('sounds/coin.mp3')
 };
 function playSound(name) {
+  if (typeof isOnline!=='undefined' && isOnline && typeof isHost!=='undefined' && isHost) (window._sndQ=window._sndQ||[]).push(name);
   if (isOnline && isHost) window._soundQueue.push(name);
   if (soundMuted) return;
   const s = SOUNDS[name];
@@ -3602,9 +3603,9 @@ window._soundQueue = window._soundQueue || [];
 function broadcastState() {
   const stateStr = JSON.stringify(G);
   connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: window._csQ||[]});
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: window._sndQ||[]});
   });
-  window._csQ=[];
+  window._sndQ=[];
 }
 
 // executeNetAction replaced by wrapper
