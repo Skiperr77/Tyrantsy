@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants of the Underdark</title>
+<title>Tyrants v18</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -335,6 +335,8 @@ function handleClientMessage(data) {
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
     if (data.sounds) data.sounds.forEach(s => playSound(s));
+    try{if(window._pp){for(var _j=0;_j<G.players.length;_j++){if(G.players[_j].played.length>window._pp[_j]){var _cd=G.players[_j].played[G.players[_j].played.length-1];var _co=(_cd.name||'').slice(0,3).trim();if(window._cS&&window._cS[_co])window._cS[_co].cloneNode().play().catch(function(){});}}}catch(e){}
+    window._pp=G.players.map(function(p){return p.played.length;});
     render();
   }
   if (data.type === 'start') {
@@ -645,6 +647,8 @@ document.addEventListener('keydown', e => {
     </details>
     <button id="btn-load-map">📂 Wczytaj mapę</button>
     <button id="btn-load-cards">🃏 Wczytaj karty</button>
+    <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window._lobM)window._lobM.pause();window._lobM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{if(!window._cS)window._cS={};window._cS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
+    <span onclick="if(window._lobM){if(window._lobM.paused){window._lobM.play().catch(function(){});this.textContent='🔊';}else{window._lobM.pause();this.textContent='🔇';}}" style="cursor:pointer;font-size:1.5em;margin-left:4px">🔊</span>
     <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
     <div id="deck-pick-section" style="display:none">
       <p style="font-size:.85em;color:#b44dff;margin:4px 0">Wybierz 2 talie do gry:</p>
@@ -1106,6 +1110,7 @@ function playCard(cardId) {
   if (idx === -1) return;
   const card = p.hand.splice(idx, 1)[0];
   p.played.push(card);
+  try{var _z=(card.name||'').slice(0,3).trim();if(window._cS&&window._cS[_z]){window._cS[_z].cloneNode().play().catch(function(){});}}catch(e){}
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
@@ -3051,6 +3056,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 
 function startGameWithDecks(selectedDecks) {
+  if(window._lobM){window._lobM.pause();window._lobM.currentTime=0;}
   // Filter market pool to only selected decks
   if (selectedDecks.length > 0) {
     const filtered = MARKET_POOL_DEF.filter(c => !c.deck || selectedDecks.includes(c.deck));
