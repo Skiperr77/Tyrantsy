@@ -238,6 +238,7 @@ let hostConn = null;  // client: connection to host
 
 function setLocalMode() {
   isOnline = false;
+  var ls=document.getElementById('local-setup'); if(ls) ls.style.display='block';
   document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
   document.getElementById('online-status').style.color = '#4ecdc4';
   document.getElementById('join-input').style.display = 'none';
@@ -251,7 +252,7 @@ function hostGame() {
   peer.on('open', id => {
     const code = id.slice(-6).toUpperCase();
     document.getElementById('room-code-display').style.display = 'block';
-    document.getElementById('room-code-display').textContent = '📋 Kod: ' + code;
+    document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>';
     document.getElementById('online-status').textContent = '🏠 Jesteś hostem. Czekam na graczy...';
     document.getElementById('online-status').style.color = '#4ecdc4';
     myPlayerId = 0;
@@ -261,11 +262,12 @@ function hostGame() {
     document.getElementById('btn-start').disabled = true;
     document.getElementById('btn-start').textContent = 'Czekam na graczy...';
     renderLobbyStatus();
+    document.getElementById('lobby-table-section').style.display='block';
     // Copy code on click
     document.getElementById('room-code-display').onclick = () => {
       navigator.clipboard.writeText(id).then(() => {
-        document.getElementById('room-code-display').textContent = '📋 Skopiowano! ' + code;
-        setTimeout(() => document.getElementById('room-code-display').textContent = '📋 Kod: ' + code, 1500);
+        document.getElementById('room-code-display').innerHTML = '<div style="color:#4ecdc4;font-size:1em">📋 Skopiowano!</div>';
+        setTimeout(() => document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>', 1500);
       });
     };
   });
@@ -753,6 +755,12 @@ function loadSoundsBtn() {
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid #333;text-align:center;max-width:800px;width:95%">
       <button id="btn-local" onclick="setLocalMode()" style="padding:10px 24px;background:#555;color:#eee;border:none;border-radius:8px;cursor:pointer;font-size:.95em">👥 Gra lokalna (hot-seat)</button>
       <p style="color:#666;font-size:.75em;margin-top:4px">Gracze na jednym urządzeniu, przełączanie tur.</p>
+      <div id="local-setup" style="display:none;margin-top:10px">
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px">
+          <button onclick="document.getElementById('btn-load-cards').click()" style="padding:8px 12px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🃏 Wczytaj karty</button>
+          <button onclick="loadSoundsBtn()" style="padding:8px 12px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🔊 Dźwięki</button>
+        </div>
+      </div>
     </div>
 
     <div id="online-status" style="font-size:.85em;color:#888;margin-top:8px"></div>
@@ -3527,15 +3535,16 @@ function onPanelDrag(e) {
 }
 
 // === ONLINE NETWORKING (PeerJS) ===
-let peer = null;
-let isHost = false;
-let isOnline = false;
-let myPlayerId = -1;
-let connections = []; // host: array of connections to clients
-let hostConn = null;  // client: connection to host
+peer = null;
+isHost = false;
+isOnline = false;
+myPlayerId = -1;
+connections = []; // host: array of connections to clients
+hostConn = null;  // client: connection to host
 
 function setLocalMode() {
   isOnline = false;
+  var ls=document.getElementById('local-setup'); if(ls) ls.style.display='block';
   document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
   document.getElementById('online-status').style.color = '#4ecdc4';
   document.getElementById('join-input').style.display = 'none';
@@ -3549,7 +3558,7 @@ function hostGame() {
   peer.on('open', id => {
     const code = id.slice(-6).toUpperCase();
     document.getElementById('room-code-display').style.display = 'block';
-    document.getElementById('room-code-display').textContent = '📋 Kod: ' + code;
+    document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>';
     document.getElementById('online-status').textContent = '🏠 Jesteś hostem. Czekam na graczy...';
     document.getElementById('online-status').style.color = '#4ecdc4';
     myPlayerId = 0;
@@ -3559,11 +3568,12 @@ function hostGame() {
     document.getElementById('btn-start').disabled = true;
     document.getElementById('btn-start').textContent = 'Czekam na graczy...';
     renderLobbyStatus();
+    document.getElementById('lobby-table-section').style.display='block';
     // Copy code on click
     document.getElementById('room-code-display').onclick = () => {
       navigator.clipboard.writeText(id).then(() => {
-        document.getElementById('room-code-display').textContent = '📋 Skopiowano! ' + code;
-        setTimeout(() => document.getElementById('room-code-display').textContent = '📋 Kod: ' + code, 1500);
+        document.getElementById('room-code-display').innerHTML = '<div style="color:#4ecdc4;font-size:1em">📋 Skopiowano!</div>';
+        setTimeout(() => document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>', 1500);
       });
     };
   });
