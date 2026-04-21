@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants v14</title>
+<title>Tyrants v15</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -3915,13 +3915,10 @@ function handleClientMessage(data) {
     document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
   }
   if (data.type === 'state') {
-    G = JSON.parse(data.state);
-    G.adjacency = rebuildAdjacency();
-    if (data.log) actionLog = data.log;
-    // Detect changes and play sounds locally
-    if (G && data.state) {
+    const newG = JSON.parse(data.state);
+    // Detect changes BEFORE updating G
+    if (G && G.players) {
       try {
-        const newG = JSON.parse(data.state);
         // Card played - check all players
         for (let _i=0; _i<newG.players.length; _i++) {
           const oldLen = G.players[_i]?.played?.length || 0;
@@ -3946,6 +3943,9 @@ function handleClientMessage(data) {
         if (oldM !== newM && oldM !== '') playSound('coin');
       } catch(e) {}
     }
+    G = newG;
+    G.adjacency = rebuildAdjacency();
+    if (data.log) actionLog = data.log;
     render();
   }
   if (data.type === 'start') {
@@ -3987,73 +3987,6 @@ startGameWithDecks = function(decks) {
 // === NETWORK ACTION WRAPPER ===
 // Wrap all game-modifying functions for online sync
 
-const _local = {
-  resetTurn,
-  playCard, playAllCards, buyCard, endTurn, skipPending, chooseOption,
-  spendDeploy, spendAssassinate, spendReturnTroop, spendReturnSpy,
-  placeSpy, promoteCard, devourCard, devourFromHand, devourFromInnerCircle,
-  recruitMadman, recruitMadmanAdjacent, supplantWhite, supplantWhitePresence,
-  supplant, assassinateWhite, assassinateAtSpy, returnOwnSpy, returnEnemy, returnEnemySpy,
-  moveEnemyPick, moveEnemyPlace, pickFromTrophy, deployTrophyTroop,
-  supplantInArea, returnSpyForSupplant, finishReturnSpies, returnSpySupplantSingle,
-  placeSpyBonusStrength, promoteFromDiscard, devourMarketReplace,
-  madmanDiscard, setupDeploy
-};
-
-function netWrap(name, fn) {
-  return function(...args) {
-    // Block if not your turn (online), except setupDeploy which has its own turn logic
-    if (isOnline && G && G.phase === 'play' && G.currentPlayer !== myPlayerId && name !== 'setupDeploy') return;
-    if (isOnline && G && G.phase === 'setup_deploy' && G.currentPlayer !== myPlayerId) return;
-    if (isOnline && !isHost && hostConn?.open) {
-      hostConn.send({type:'action', name, args});
-      return;
-    }
-    fn(...args);
-    if (isOnline && isHost) broadcastState();
-  };
-}
-
-// Rewrap all functions
-playCard = netWrap('playCard', _local.playCard);
-playAllCards = netWrap('playAllCards', _local.playAllCards);
-buyCard = netWrap('buyCard', _local.buyCard);
-endTurn = netWrap('endTurn', _local.endTurn);
-resetTurn = netWrap('resetTurn', _local.resetTurn);
-skipPending = netWrap('skipPending', _local.skipPending);
-chooseOption = netWrap('chooseOption', _local.chooseOption);
-spendDeploy = netWrap('spendDeploy', _local.spendDeploy);
-spendAssassinate = netWrap('spendAssassinate', _local.spendAssassinate);
-spendReturnTroop = netWrap('spendReturnTroop', _local.spendReturnTroop);
-spendReturnSpy = netWrap('spendReturnSpy', _local.spendReturnSpy);
-placeSpy = netWrap('placeSpy', _local.placeSpy);
-promoteCard = netWrap('promoteCard', _local.promoteCard);
-devourCard = netWrap('devourCard', _local.devourCard);
-devourFromHand = netWrap('devourFromHand', _local.devourFromHand);
-devourFromInnerCircle = netWrap('devourFromInnerCircle', _local.devourFromInnerCircle);
-recruitMadman = netWrap('recruitMadman', _local.recruitMadman);
-recruitMadmanAdjacent = netWrap('recruitMadmanAdjacent', _local.recruitMadmanAdjacent);
-supplantWhite = netWrap('supplantWhite', _local.supplantWhite);
-supplantWhitePresence = netWrap('supplantWhitePresence', _local.supplantWhitePresence);
-supplant = netWrap('supplant', _local.supplant);
-assassinateWhite = netWrap('assassinateWhite', _local.assassinateWhite);
-assassinateAtSpy = netWrap('assassinateAtSpy', _local.assassinateAtSpy);
-returnOwnSpy = netWrap('returnOwnSpy', _local.returnOwnSpy);
-returnEnemy = netWrap('returnEnemy', _local.returnEnemy);
-returnEnemySpy = netWrap('returnEnemySpy', _local.returnEnemySpy);
-moveEnemyPick = netWrap('moveEnemyPick', _local.moveEnemyPick);
-moveEnemyPlace = netWrap('moveEnemyPlace', _local.moveEnemyPlace);
-pickFromTrophy = netWrap('pickFromTrophy', _local.pickFromTrophy);
-deployTrophyTroop = netWrap('deployTrophyTroop', _local.deployTrophyTroop);
-supplantInArea = netWrap('supplantInArea', _local.supplantInArea);
-returnSpyForSupplant = netWrap('returnSpyForSupplant', _local.returnSpyForSupplant);
-finishReturnSpies = netWrap('finishReturnSpies', _local.finishReturnSpies);
-returnSpySupplantSingle = netWrap('returnSpySupplantSingle', _local.returnSpySupplantSingle);
-placeSpyBonusStrength = netWrap('placeSpyBonusStrength', _local.placeSpyBonusStrength);
-promoteFromDiscard = netWrap('promoteFromDiscard', _local.promoteFromDiscard);
-devourMarketReplace = netWrap('devourMarketReplace', _local.devourMarketReplace);
-madmanDiscard = netWrap('madmanDiscard', _local.madmanDiscard);
-setupDeploy = netWrap('setupDeploy', _local.setupDeploy);
 
 // Fix host message handler to use _local functions
 function handleHostMessage(conn, data) {
