@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<script>var _sndQ=[];window._cS=window._cS||{};</script>
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants v20</title>
+<title>Tyrants v16</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -276,6 +275,7 @@ function joinGame() {
 }
 
 function connectToHost() {
+  document.querySelectorAll('button[onclick*=connectToHost]').forEach(function(b){b.disabled=true;b.textContent='Łączenie...'});
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer();
@@ -283,6 +283,7 @@ function connectToHost() {
   peer.on('open', () => {
     // Try to find host by code - PeerJS uses full ID, we need to match
     // Host's ID ends with the code (lowercased)
+    document.querySelector('#join-setup button[onclick*=connectToHost]')&&(document.querySelector('#join-setup button[onclick*=connectToHost]').disabled=true);
     hostConn = peer.connect(code.toLowerCase());
     if (!hostConn) {
       // Try with the raw input as full peer ID
@@ -335,7 +336,12 @@ function handleClientMessage(data) {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if (data.sounds) data.sounds.forEach(s => playSound(s));
+    if (data.sounds) data.sounds.forEach(s => {
+      if (s.startsWith('card:')) {
+        const code = s.slice(5);
+        try { const a = new Audio('sounds/cards/'+code+'.wav'); a.onerror=()=>{const a2=new Audio('sounds/cards/'+code+'.mp3');a2.volume=0.5;a2.play().catch(()=>{});}; a.volume=0.5; a.play().catch(()=>{}); } catch(e){}
+      } else { playSound(s); }
+    });
     render();
   }
   if (data.type === 'start') {
@@ -379,6 +385,14 @@ startGameWithDecks = function(decks) {
 // Wrap all game-modifying functions for online sync
 
 const _local = {
+  promoteAspect,
+  recruitFreeAspect,
+  assassinateAreaGainInfluence,
+  assassinateThenDiscard,
+  placeSpyOpponentsDiscard,
+  playFromInnerCircle,
+  playFromMarket,
+  chooseOpponentDiscard,
   resetTurn,
   playCard, playAllCards, buyCard, endTurn, skipPending, chooseOption,
   spendDeploy, spendAssassinate, spendReturnTroop, spendReturnSpy,
@@ -409,6 +423,14 @@ function netWrap(name, fn) {
 playCard = netWrap('playCard', _local.playCard);
 playAllCards = netWrap('playAllCards', _local.playAllCards);
 buyCard = netWrap('buyCard', _local.buyCard);
+chooseOpponentDiscard = netWrap('chooseOpponentDiscard', _local.chooseOpponentDiscard);
+playFromMarket = netWrap('playFromMarket', _local.playFromMarket);
+playFromInnerCircle = netWrap('playFromInnerCircle', _local.playFromInnerCircle);
+placeSpyOpponentsDiscard = netWrap('placeSpyOpponentsDiscard', _local.placeSpyOpponentsDiscard);
+assassinateThenDiscard = netWrap('assassinateThenDiscard', _local.assassinateThenDiscard);
+assassinateAreaGainInfluence = netWrap('assassinateAreaGainInfluence', _local.assassinateAreaGainInfluence);
+recruitFreeAspect = netWrap('recruitFreeAspect', _local.recruitFreeAspect);
+promoteAspect = netWrap('promoteAspect', _local.promoteAspect);
 endTurn = netWrap('endTurn', _local.endTurn);
 resetTurn = netWrap('resetTurn', _local.resetTurn);
 skipPending = netWrap('skipPending', _local.skipPending);
@@ -646,7 +668,20 @@ document.addEventListener('keydown', e => {
     </details>
     <button id="btn-load-map">📂 Wczytaj mapę</button>
     <button id="btn-load-cards">🃏 Wczytaj karty</button>
-    <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window._lobM)window._lobM.pause();window._lobM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window._cS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
+    <button id="btn-load-sounds" onclick="
+      var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
+      inp.onchange=function(){var loaded=0;var total=inp.files.length;
+        Array.from(inp.files).forEach(function(f){var code=f.name.split('.')[0];
+          var r=new FileReader();r.onload=function(){
+            var audio=new Audio(r.result);
+            if(code.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=audio;audio.loop=true;audio.volume=0.3;audio.play().catch(function(){});}
+            else{window.CARD_SOUNDS[code]=audio;}
+            loaded++;document.getElementById('map-status').textContent='🔊 '+loaded+'/'+total;document.getElementById('map-status').style.color='#4ecdc4';
+          };r.readAsDataURL(f);
+        });
+      };inp.click();
+    ">🔊 Wczytaj dźwięki</button>
+    <span id="music-toggle" onclick="window.musicMuted=!window.musicMuted;if(window.musicMuted){if(window.lobbyMusic)window.lobbyMusic.pause();this.textContent='🔇';}else{if(window.lobbyMusic)window.lobbyMusic.play().catch(function(){});this.textContent='🔊';}" style="cursor:pointer;font-size:1.5em;margin-left:8px">🔊</span>
     <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
     <div id="deck-pick-section" style="display:none">
       <p style="font-size:.85em;color:#b44dff;margin:4px 0">Wybierz 2 talie do gry:</p>
@@ -709,6 +744,8 @@ document.addEventListener('keydown', e => {
 </div>
 
 <script>
+var _sndQ = [];
+window.CARD_SOUNDS = window.CARD_SOUNDS || {};
 const IMG_STORE = {};
 function storeImg(card) {
   if (!card || !card.image) return;
@@ -1108,9 +1145,16 @@ function playCard(cardId) {
   if (idx === -1) return;
   const card = p.hand.splice(idx, 1)[0];
   p.played.push(card);
+  var _sc=(card.name||'').slice(0,3).trim(); if(_sc) _sndQ.push('card:'+_sc);
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
+  if (card.focusAspect && card.focusEffects && card.focusEffects.length > 0) {
+    const aspect = card.focusAspect;
+    const p = cp();
+    const hasMatch = p.played.some(c => c.id !== card.id && c.aspect === aspect) || p.hand.some(c => c.aspect === aspect);
+    if (hasMatch) { logAction(`<span style="color:${p.color}">${p.name}</span>: ⚡ Skupienie ${aspect}!`); applyEffects(card.focusEffects); }
+  }
   render();
 }
 
@@ -1123,9 +1167,12 @@ function playAllCards() {
   while (p.hand.length > 0 && !G.pending) {
     const card = p.hand.shift();
     p.played.push(card);
-  try{var _z=(card.name||'').slice(0,3).trim();if(window._cS[_z]){window._cS[_z].cloneNode().play().catch(function(){});}if(_z)(window._sndQ=window._sndQ||[]).push('card:'+_z);}catch(e){}
     logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
     applyEffects(card.effects);
+    if (!G.pending && card.focusAspect && card.focusEffects?.length > 0) {
+      const hasMatch = p.played.some(c => c.id !== card.id && c.aspect === card.focusAspect) || p.hand.some(c => c.aspect === card.focusAspect);
+      if (hasMatch) { logAction(`<span style="color:${p.color}">${p.name}</span>: ⚡ Skupienie ${card.focusAspect}!`); applyEffects(card.focusEffects); }
+    }
     if (G.pending) break; // stop if card requires interaction
   }
   render();
@@ -1306,6 +1353,49 @@ function applyEffects(effects) {
         }
         break;
       }
+      case 'opponents_discard': {
+        const pi = G.currentPlayer;
+        G.players.forEach((p2, i) => { if (i !== pi && p2.hand.length > (eff.threshold || 3)) forceDiscard(i); });
+        break;
+      }
+      case 'choose_opponent_discard': G.pending = {type:'choose_opponent_discard', then:effects.slice(ei+1), remaining:eff.value||1}; return;
+      case 'opponents_discard_end_of_turn':
+        G._opponentsDiscardEndOfTurn = true;
+        break;
+      case 'draw_per_spies': {
+        const p = cp(), pi = G.currentPlayer;
+        const spiesOut = 5 - p.spiesInBarracks;
+        if (spiesOut > 0) { drawCards(p, spiesOut); logAction(`<span style="color:${p.color}">${p.name}</span>: dobiera ${spiesOut} kart (szpiedzy)`); }
+        break;
+      }
+      case 'strength_per_trophies': {
+        const p = cp();
+        const total = p.trophyHall.length;
+        const bonus = Math.floor(total / (eff.value||3));
+        if (bonus > 0) { G.strength += bonus; logAction(`<span style="color:${p.color}">${p.name}</span>: +${bonus} Siła (${total} trofeów / ${eff.value||3})`); }
+        break;
+      }
+      case 'assassinate_white_per_control': {
+        const pi = G.currentPlayer;
+        const controlled = G.board.filter(n => n.nodeType==='city' && n.controlledBy===pi).length;
+        if (controlled > 0) { G.pending = {type:'assassinate_white', then:effects.slice(ei+1), remaining:controlled}; render(); return; }
+        break;
+      }
+      case 'play_from_market': G.pending = {type:'play_from_market', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:eff.maxCost||4}; return;
+      case 'play_from_inner_circle': G.pending = {type:'play_from_inner_circle', then:effects.slice(ei+1), remaining:eff.value||1}; return;
+      case 'place_spy_opponents_discard': G.pending = {type:'place_spy_opponents_discard', then:effects.slice(ei+1), remaining:eff.value}; return;
+      case 'assassinate_then_discard': G.pending = {type:'assassinate_then_discard', then:effects.slice(ei+1), remaining:eff.value||1}; return;
+      case 'assassinate_area_gain_influence': G.pending = {type:'assassinate_area_gain_influence', then:effects.slice(ei+1), remaining:eff.value||3, area:null}; return;
+      case 'recruit_free_aspect_ambicja': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Ambicja'}; return;
+      case 'recruit_free_aspect_podboj': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Podbój'}; return;
+      case 'recruit_free_aspect_podstep': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Podstęp'}; return;
+      case 'recruit_free_aspect_zlosliwosc': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Złośliwość'}; return;
+      case 'recruit_free_aspect_posluszenstwo': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:4, aspect:'Posłuszeństwo'}; return;
+      case 'recruit_free_aspect': G.pending = {type:'recruit_free_aspect', then:effects.slice(ei+1), remaining:eff.value||1, maxCost:eff.maxCost||4, aspect:eff.aspect||'Ambicja'}; return;
+      case 'promote_aspect_end_of_turn':
+        if (!G._promoteAspectEndOfTurn) G._promoteAspectEndOfTurn = [];
+        G._promoteAspectEndOfTurn.push({aspect: eff.aspect || 'Posłuszeństwo', count: eff.value || 1});
+        break;
       case 'devour_hand': G.pending = {type:'devour_hand', remaining:eff.value, then:effects.slice(ei+1)}; return;
       case 'choose_one': G.pending = {type:'choose_one', then:effects.slice(ei+1), options:eff.options, remaining:eff.value||1}; return;
       case 'deploy_white_from_trophy': G.pending = {type:'deploy_white_from_trophy', then:effects.slice(ei+1), remaining:eff.value, phase:'pick'}; return;
@@ -1525,6 +1615,154 @@ function deployTrophyTroop(nodeId, slotIdx) {
   logAction(`<span style="color:${cp().color}">${cp().name}</span>: wysyła oddział z trofeów`);
   G.pending.remaining--;
   if (G.pending.remaining <= 0) resolvePending();
+  render();
+}
+
+
+// Force discard with onDiscard passive check
+function forceDiscard(playerIdx) {
+  const p2 = G.players[playerIdx];
+  if (p2.hand.length <= 3) return;
+  if (!G._discardQueue) G._discardQueue = {};
+  G._discardQueue[playerIdx] = (G._discardQueue[playerIdx] || 0) + 1;
+  logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: musi odrzucić kartę`);
+  return;
+  // OLD CODE BELOW (dead)
+  if (p2.hand.length === 0) return;
+  const onDiscardIdx = p2.hand.findIndex(c => c.onDiscard);
+  let discarded;
+  if (onDiscardIdx >= 0) { discarded = p2.hand.splice(onDiscardIdx, 1)[0]; }
+  else { discarded = p2.hand.pop(); }
+  const od = discarded.onDiscard;
+  if (od) {
+    if (od.type === 'draw') { drawCards(p2, od.value || 2); logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: odrzuca ${discarded.name} → dobiera ${od.value||2}!`); p2.discard.push(discarded); }
+    else if (od.type === 'promote_self') { p2.innerCircle.push(discarded); logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: ${discarded.name} → awansuje!`); }
+    else if (od.type === 'opponent_discard') { p2.discard.push(discarded); const att=cp(); if(att.hand.length>0){const ad=att.hand.pop();att.discard.push(ad);logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: ${discarded.name} → ${att.name} też odrzuca!`);} }
+    else { p2.discard.push(discarded); logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: odrzuca (${discarded.name})`); }
+  } else { p2.discard.push(discarded); logAction(`<span style="color:${COLORS[playerIdx]}">${p2.name}</span>: odrzuca (${discarded.name})`); }
+}
+
+function resolveDiscard(cardId) {
+  if (!G.pending || G.pending.type !== 'forced_discard') return;
+  const pi = G.currentPlayer, p = G.players[pi];
+  const idx = p.hand.findIndex(c => c.id === cardId);
+  if (idx === -1) return;
+  saveUndo();
+  const discarded = p.hand.splice(idx, 1)[0];
+  const od = discarded.onDiscard;
+  if (od) {
+    if (od.type === 'draw') { drawCards(p, od.value||2); logAction(`<span style="color:${COLORS[pi]}">${p.name}</span>: odrzuca ${discarded.name} → dobiera ${od.value||2}!`); p.discard.push(discarded); }
+    else if (od.type === 'promote_self') { p.innerCircle.push(discarded); logAction(`<span style="color:${COLORS[pi]}">${p.name}</span>: ${discarded.name} → awansuje!`); }
+    else { p.discard.push(discarded); logAction(`<span style="color:${COLORS[pi]}">${p.name}</span>: odrzuca ${discarded.name}`); }
+  } else { p.discard.push(discarded); logAction(`<span style="color:${COLORS[pi]}">${p.name}</span>: odrzuca ${discarded.name}`); }
+  G.pending.remaining--;
+  if (G.pending.remaining <= 0) G.pending = null;
+  render();
+}
+
+function chooseOpponentDiscard(playerIdx) {
+  if (!G.pending || G.pending.type!=='choose_opponent_discard') return;
+  if (playerIdx === G.currentPlayer) return;
+  if (G.players[playerIdx].hand.length <= 3) return;
+  saveUndo(); forceDiscard(playerIdx);
+  G.pending.remaining--; if (G.pending.remaining <= 0) resolvePending(); render();
+}
+
+function playFromMarket(marketIdx) {
+  if (!G.pending || G.pending.type!=='play_from_market') return;
+  const card = G.market[marketIdx];
+  if (!card || card.cost > G.pending.maxCost) return;
+  saveUndo();
+  const taken = G.market.splice(marketIdx, 1)[0];
+  if (G.marketDeck.length > 0) G.market.push(G.marketDeck.pop());
+  logAction(`<span style="color:${cp().color}">${cp().name}</span>: zagrywa z rynku <b>${taken.name}</b>`);
+  G.devoured.push(taken);
+  G.pending.remaining--; if (G.pending.remaining <= 0) G.pending = null;
+  applyEffects(taken.effects);
+  if (!G.pending) resolvePending(); render();
+}
+
+function playFromInnerCircle(cardId) {
+  if (!G.pending || G.pending.type!=='play_from_inner_circle') return;
+  const p = cp();
+  const idx = p.innerCircle.findIndex(c => c.id === cardId);
+  if (idx === -1) return;
+  saveUndo();
+  const card = p.innerCircle[idx];
+  logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa z wew. kręgu <b>${card.name}</b>`);
+  G.pending.remaining--; if (G.pending.remaining <= 0) G.pending = null;
+  applyEffects(card.effects);
+  if (!G.pending) resolvePending(); render();
+}
+
+function placeSpyOpponentsDiscard(nodeId) {
+  if (!G.pending || G.pending.type!=='place_spy_opponents_discard') return;
+  const pi = G.currentPlayer, node = findNode(nodeId);
+  if (!node || node.nodeType!=='city' || node.spies.includes(pi)) return;
+  const p = cp();
+  if (p.spiesInBarracks <= 0) { G.pending = null; render(); return; }
+  saveUndo();
+  node.spies.push(pi); p.spiesInBarracks--;
+  G._recentSpyArea = nodeId; updateControl(nodeId);
+  logAction(`<span style="color:${p.color}">${p.name}</span>: umieszcza szpiega`);
+  G.players.forEach((p2, i) => { if (i !== pi && node.slots.some(s => s.owner === i) && p2.hand.length > 3) forceDiscard(i); });
+  G.pending.remaining--; if (G.pending.remaining <= 0) resolvePending(); render();
+}
+
+function assassinateThenDiscard(nodeId, slotIdx) {
+  if (!G.pending || G.pending.type!=='assassinate_then_discard') return;
+  const pi = G.currentPlayer, node = findNode(nodeId);
+  if (!node) return;
+  const slot = node.slots[slotIdx];
+  if (!slot || slot.owner === null || slot.owner === pi || !playerHasPresence(pi, nodeId)) return;
+  saveUndo();
+  const victim = slot.owner; slot.owner = null;
+  cp().trophyHall.push({color: victim==='white'?'#888':COLORS[victim]||'#888'});
+  playDeathSound(); updateControl(nodeId);
+  logAction(`<span style="color:${cp().color}">${cp().name}</span>: likwiduje oddział`);
+  if (victim !== 'white' && G.players[victim].hand.length > 3) forceDiscard(victim);
+  G.pending.remaining--; if (G.pending.remaining <= 0) resolvePending(); render();
+}
+
+function assassinateAreaGainInfluence(nodeId, slotIdx) {
+  if (!G.pending || G.pending.type!=='assassinate_area_gain_influence') return;
+  const pi = G.currentPlayer, node = findNode(nodeId);
+  if (!node) return;
+  const slot = node.slots[slotIdx];
+  if (!slot || slot.owner === null || slot.owner === pi || !playerHasPresence(pi, nodeId)) return;
+  if (G.pending.area === null) G.pending.area = nodeId;
+  if (G.pending.area !== nodeId) return;
+  saveUndo();
+  const victim = slot.owner; slot.owner = null;
+  cp().trophyHall.push({color: victim==='white'?'#888':COLORS[victim]||'#888'});
+  G.influence += 1; playDeathSound(); updateControl(nodeId);
+  logAction(`<span style="color:${cp().color}">${cp().name}</span>: likwiduje oddział (+1💎)`);
+  G.pending.remaining--; if (G.pending.remaining <= 0) resolvePending(); render();
+}
+
+function recruitFreeAspect(marketIdx) {
+  if (!G.pending || G.pending.type!=='recruit_free_aspect') return;
+  const card = G.market[marketIdx];
+  if (!card || card.cost > G.pending.maxCost || card.aspect !== G.pending.aspect) return;
+  saveUndo();
+  cp().discard.push(G.market.splice(marketIdx, 1)[0]);
+  if (G.marketDeck.length > 0) G.market.push(G.marketDeck.pop());
+  playSound('coin');
+  logAction(`<span style="color:${cp().color}">${cp().name}</span>: werbuje za darmo <b>${card.name}</b>`);
+  G.pending.remaining--; if (G.pending.remaining <= 0) resolvePending(); render();
+}
+
+function promoteAspect(cardId) {
+  if (!G.pending || G.pending.type!=='promote_aspect') return;
+  const p = cp();
+  const idx = p.played.findIndex(c => c.id === cardId && c.aspect === G.pending.aspect);
+  if (idx === -1) return;
+  saveUndo();
+  const card = p.played.splice(idx, 1)[0];
+  if (card.isMadman) { G.madmanSupply++; }
+  else { p.innerCircle.push(card); playSound('awans'); logAction(`<span style="color:${p.color}">${p.name}</span>: awansuje <b>${card.name}</b>`); }
+  G.pending.remaining--;
+  if (G.pending.remaining <= 0 || !p.played.some(c => c.aspect === G.pending.aspect)) resolvePending();
   render();
 }
 
@@ -2277,6 +2515,7 @@ function checkEndCondition() {
 
 function endTurn() {
   if (G.phase!=='play' || G.pending) return;
+  if (isOnline && G.currentPlayer !== myPlayerId) return;
   saveUndo();
   const p = cp(), pi = G.currentPlayer;
   // VP and influence from control tokens
@@ -2327,6 +2566,21 @@ function endTurn() {
     return;
   }
   G._promoteEndOfTurn = 0;
+  // Opponents discard at end of turn
+  if (G._opponentsDiscardEndOfTurn) {
+    G._opponentsDiscardEndOfTurn = false;
+    G.players.forEach((p2, i) => { if (i !== pi && p2.hand.length > 0) forceDiscard(i); });
+  }
+  // Promote by aspect at end of turn
+  if (G._promoteAspectEndOfTurn && G._promoteAspectEndOfTurn.length > 0) {
+    const req = G._promoteAspectEndOfTurn.shift();
+    const eligible = p.played.filter(c => c.aspect === req.aspect);
+    if (eligible.length > 0) {
+      G.pending = {type:'promote_aspect', then:[], remaining: Math.min(req.count, eligible.length), aspect: req.aspect};
+      render(); return;
+    }
+  }
+  G._promoteAspectEndOfTurn = null;
   // Unhide all market cards at end of turn
   G.market.forEach(c => delete c._hidden);
   // Return revealed devoured cards from market
@@ -2521,7 +2775,16 @@ function render(){
   const myP = (isOnline && myPlayerId >= 0) ? G.players[myPlayerId] : p;
   document.getElementById('res-tokens').textContent=`🏆 ${myP.vpTokens}`;
   document.getElementById('scores').innerHTML=scores.map((s,i)=>`<span class="score-badge ${i===pi?'active':''}" style="border:2px solid ${COLORS[i]};position:relative;cursor:pointer" onclick="toggleScoreDetail(${i})" onmouseleave="hideScoreDetail()">${s.name}: ${s.total}<div class="score-detail" id="sd-${i}">Talia: ${s.deckPZ}<br>Awanse: ${s.innerPZ}<br>Kontrola: ${s.areaPZ}<br>Pełna kontrola: +${s.fullControlBonus}<br>Trofea: ${s.trophyPZ}<br>Żetony PZ: ${s.tokenPZ}<br><b>Razem: ${s.total}</b></div></span>`).join('');
+  if (G.phase === 'play' && !G.pending && G._discardQueue) {
+    const pi = G.currentPlayer;
+    const count = G._discardQueue[pi] || 0;
+    const maxDiscard = Math.max(0, cp().hand.length - 3);
+    const actual = Math.min(count, maxDiscard);
+    if (actual > 0) { G._discardQueue[pi] = 0; G.pending = {type:'forced_discard', remaining: actual}; }
+    else { delete G._discardQueue[pi]; }
+  }
   renderPrompt();
+  if (G.pending && !previewCard && (!isOnline || G.currentPlayer===myPlayerId)) { const lp = cp().played; if (lp.length > 0) showPreview(lp[lp.length-1]); }
   // Auto-show last played card preview when pending
   if (G.pending && !previewCard && (!isOnline || G.currentPlayer===myPlayerId)) { const lp = cp().played; if (lp.length > 0) showPreview(lp[lp.length-1]); }renderSVGMap();renderHand();renderMarket();renderPlayed();renderInfo();renderLog();
 }
@@ -2578,7 +2841,7 @@ function renderMarket(){
   let h=`<div class="card-sm" onclick="if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(HOUSE_GUARD)" onmouseleave="clearPreview()" style="${G.influence>=HOUSE_GUARD.cost?'border-color:#b44dff':''}">${cardInner(HOUSE_GUARD)}</div>`;
   h+=`<div class="card-sm" onclick="if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(LOLTH_PRIESTESS)" onmouseleave="clearPreview()" style="${G.influence>=LOLTH_PRIESTESS.cost?'border-color:#b44dff':''}">${cardInner(LOLTH_PRIESTESS)}</div>`;
   h+=`<div style="width:1px;background:#333;margin:0 4px;flex-shrink:0"></div>`;
-  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="if(!G.market[${i}]?._hidden)showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
+  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else if(G.pending?.type==='play_from_market'){playFromMarket(${i})}else if(G.pending?.type==='recruit_free_aspect'){recruitFreeAspect(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="if(!G.market[${i}]?._hidden)showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
   mc.innerHTML=h;
   document.getElementById('market-deck-count').textContent=G.marketDeck.length;
 }
@@ -2606,7 +2869,7 @@ function renderInfo(){
 function renderPrompt(){
   const el=document.getElementById('action-prompt');
   if(G.phase==='setup_deploy'){el.classList.remove('hidden');el.innerHTML=`🏰 ${cp().name}: Wyślij oddział do obszaru początkowego`;return;}
-  if(G.pending){const lb={deploy:'Wyślij oddział na puste pole',assassinate:'Zlikwiduj wrogi oddział',place_spy:'Kliknij miasto aby umieścić szpiega',promote:'Kliknij zagraną kartę aby awansować',return_troop:'Kliknij wrogi oddział aby wycofać',devour:'Przeciągnij/kliknij kartę aby pożreć',recruit_madman:'Wybierz przeciwnika',madman_discard:'Odrzuć kartę z ręki aby zwrócić Wyrzutka (lub Pomiń)',devour_hand:'Pożryj kartę z ręki',devour_market_replace:'Kliknij kartę z rynku aby pożreć i zastąpić',devour_market:'Kliknij kartę z rynku aby pożreć',recruit_free_max_cost:'Zwerbuj kartę za darmo (koszt ≤ limit)',deploy_from_trophy:'Weź oddział z sali trofeów',deploy_white_from_trophy:'Weź biały oddział z sali trofeów',recruit_madman_adjacent:'Wybierz przyległego przeciwnika',supplant:'Wyprzyj oddział (przyległy)',supplant_white:'Kliknij biały oddział aby wyprzeć',supplant_white_presence:'Wyprzyj przyległy biały oddział',assassinate_white:'Zlikwiduj biały oddział',assassinate_white_area:'Zlikwiduj białe z 1 obszaru',return_own_spy:'Kliknij swojego szpiega aby wycofać',return_spy_supplant_single:'Kliknij szpiega aby wycofać i wyprzeć',place_spy_bonus_strength:'Umieść szpiega (+1⚔️ jeśli wróg)',place_spy_bonus_if_enemy_spy:'Umieść szpiega (+3⚔️ jeśli wrogi szpieg)',place_spy_bonus_influence:'Umieść szpiega (+2💎 jeśli wrogi oddział)',place_spy_steal_trophies:'Umieść szpiega (kradnij z trofeów wroga)',return_enemy:'Wycofaj oddział lub szpiega przeciwnika',assassinate_at_spy:'Zlikwiduj oddział w obszarze szpiega',return_spies_supplant:'Kliknij swoich szpiegów aby wycofać, potem Gotowe',promote_any:'Awansuj kartę (zagrane/ręka/odrzucone)',devour_self_cost:'Pożryj tę kartę?',promote_deck:'Awansuj karty z talii',devour_inner_circle:'Pożryj kartę z wew. kręgu',promote_from_discard:'Awansuj kartę z odrzuconych',move_enemy:'Kliknij wrogi oddział aby przesunąć',move_enemy_place:'Kliknij puste pole aby umieścić',supplant_in_areas:'Wyprzyj oddział w zaznaczonym obszarze',deploy_trophy_place:'Wyślij oddział z trofeów na puste pole',choose_one:'Wybierz jedną opcję'};el.classList.remove('hidden');let html=`⚡ ${lb[G.pending.type]||G.pending.type} (${G.pending.remaining||''}) <button onclick="skipPending()">Pomiń</button>`;
+  if(G.pending){const lb={deploy:'Wyślij oddział na puste pole',assassinate:'Zlikwiduj wrogi oddział',place_spy:'Kliknij miasto aby umieścić szpiega',promote:'Kliknij zagraną kartę aby awansować',return_troop:'Kliknij wrogi oddział aby wycofać',devour:'Przeciągnij/kliknij kartę aby pożreć',recruit_madman:'Wybierz przeciwnika',madman_discard:'Odrzuć kartę z ręki aby zwrócić Wyrzutka (lub Pomiń)',devour_hand:'Pożryj kartę z ręki',forced_discard:'Musisz odrzucić kartę',choose_opponent_discard:'Wybierz przeciwnika do odrzucenia',play_from_market:'Zagraj kartę z rynku (koszt ≤4)',play_from_inner_circle:'Zagraj z wew. kręgu',place_spy_opponents_discard:'Umieść szpiega (wrogowie odrzucają)',assassinate_then_discard:'Zlikwiduj (gracz odrzuca)',assassinate_area_gain_influence:'Zlikwiduj z 1 obszaru (+1💎)',recruit_free_aspect:'Zwerbuj z aspektem za darmo',promote_aspect:'Awansuj kartę z aspektem',devour_market_replace:'Kliknij kartę z rynku aby pożreć i zastąpić',devour_market:'Kliknij kartę z rynku aby pożreć',recruit_free_max_cost:'Zwerbuj kartę za darmo (koszt ≤ limit)',deploy_from_trophy:'Weź oddział z sali trofeów',deploy_white_from_trophy:'Weź biały oddział z sali trofeów',recruit_madman_adjacent:'Wybierz przyległego przeciwnika',supplant:'Wyprzyj oddział (przyległy)',supplant_white:'Kliknij biały oddział aby wyprzeć',supplant_white_presence:'Wyprzyj przyległy biały oddział',assassinate_white:'Zlikwiduj biały oddział',assassinate_white_area:'Zlikwiduj białe z 1 obszaru',return_own_spy:'Kliknij swojego szpiega aby wycofać',return_spy_supplant_single:'Kliknij szpiega aby wycofać i wyprzeć',place_spy_bonus_strength:'Umieść szpiega (+1⚔️ jeśli wróg)',place_spy_bonus_if_enemy_spy:'Umieść szpiega (+3⚔️ jeśli wrogi szpieg)',place_spy_bonus_influence:'Umieść szpiega (+2💎 jeśli wrogi oddział)',place_spy_steal_trophies:'Umieść szpiega (kradnij z trofeów wroga)',return_enemy:'Wycofaj oddział lub szpiega przeciwnika',assassinate_at_spy:'Zlikwiduj oddział w obszarze szpiega',return_spies_supplant:'Kliknij swoich szpiegów aby wycofać, potem Gotowe',promote_any:'Awansuj kartę (zagrane/ręka/odrzucone)',devour_self_cost:'Pożryj tę kartę?',promote_deck:'Awansuj karty z talii',devour_inner_circle:'Pożryj kartę z wew. kręgu',promote_from_discard:'Awansuj kartę z odrzuconych',move_enemy:'Kliknij wrogi oddział aby przesunąć',move_enemy_place:'Kliknij puste pole aby umieścić',supplant_in_areas:'Wyprzyj oddział w zaznaczonym obszarze',deploy_trophy_place:'Wyślij oddział z trofeów na puste pole',choose_one:'Wybierz jedną opcję'};el.classList.remove('hidden');let html=`⚡ ${lb[G.pending.type]||G.pending.type} (${G.pending.remaining||''}) <button onclick="skipPending()">Pomiń</button>`;
     if(G.pending.type==='return_spies_supplant'){html+=`<div style="margin-top:4px"><button onclick="finishReturnSpies()" style="background:#4ecdc4">✓ Gotowe (wycofano ${G.pending.returnedAreas.length})</button></div>`;}
     if(G.pending.type==='promote_from_discard'){
       const p=cp();
@@ -2644,6 +2907,30 @@ function renderPrompt(){
         `<div onclick="devourFromInnerCircle('${c.id}')" style="cursor:pointer;border:2px solid #f33;border-radius:6px;overflow:hidden;width:50px;height:70px;display:inline-flex;align-items:center;justify-content:center;background:#16213e;font-size:.55em">
           ${c.image?`<img src="${getImg(c)}" style="width:100%;height:100%;object-fit:cover">`:`<span style="color:#ffd700">${c.name}</span>`}
         </div>`).join('')}</div>`;
+    }
+    if(G.pending.type==='choose_opponent_discard'){
+      let btns=G.players.map((p,i)=>{
+        if(i===G.currentPlayer) return '';
+        if(p.hand.length<=3) return `<button disabled style="margin:2px;opacity:.3;background:${COLORS[i]}">${p.name} (${p.hand.length})</button>`;
+        return `<button onclick="chooseOpponentDiscard(${i})" style="margin:2px;background:${COLORS[i]}">${p.name} (${p.hand.length})</button>`;
+      }).join('');
+      html+=`<div style="margin-top:4px">${btns}</div>`;
+    }
+    if(G.pending.type==='play_from_inner_circle'){
+      const p=cp();
+      html+=`<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;justify-content:center">${p.innerCircle.map(c=>{
+        const img=getImg(c);
+        return `<div onclick="playFromInnerCircle('${c.id}')" style="cursor:pointer;border:2px solid #b44dff;border-radius:6px;overflow:hidden;width:50px;height:70px;display:inline-flex;align-items:center;justify-content:center;background:#16213e;font-size:.55em">${img?`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`:`<span style="color:#ffd700">${c.name}</span>`}</div>`;
+      }).join('')}</div>`;
+    }
+    if(G.pending.type==='promote_aspect'){
+      const p=cp();
+      const eligible=p.played.filter(c=>c.aspect===G.pending.aspect);
+      html+=`<div style="margin-top:4px;font-size:.8em;color:#aaa">Awansuj: ${G.pending.aspect}</div>`;
+      html+=`<div style="display:flex;gap:4px;flex-wrap:wrap">${eligible.map(c=>{
+        const img=getImg(c);
+        return `<div onclick="promoteAspect('${c.id}')" style="cursor:pointer;border:2px solid #ffd700;border-radius:6px;overflow:hidden;width:50px;height:70px;display:inline-flex;align-items:center;justify-content:center;background:#16213e;font-size:.55em">${img?`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`:`<span style="color:#ffd700">${c.name}</span>`}</div>`;
+      }).join('')}</div>`;
     }
     if(G.pending.type==='recruit_madman'){html+=`<div style="margin-top:4px">${G.players.map((p,i)=>i!==G.currentPlayer?`<button onclick="recruitMadman(${i})" style="background:${COLORS[i]};margin:2px">${p.name}</button>`:'').join('')}</div>`;}
     if(G.pending.type==='choose_one'){html+=`<div style="margin-top:4px">${G.pending.options.map((o,i)=>`<button onclick="chooseOption(${i})" style="margin:2px;background:#2a1a4e;border:1px solid #b44dff"><span style="color:#ffd700">[${i+1}]</span> ${o.label}</button>`).join('')}</div>`;}
@@ -2768,7 +3055,7 @@ function renderSVGMap(){
   });
   saveMapState();
   document.querySelectorAll('.map-slot').forEach(el=>el.addEventListener('click',()=>handleSlotClick(el.dataset.node,parseInt(el.dataset.slot))));
-  document.querySelectorAll('.map-area').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('.map-slot')||e.target.closest('.map-spy'))return;if(G.pending?.type==='place_spy')placeSpy(el.dataset.node);else if(G.pending?.type==='place_spy_bonus_if_enemy_spy')placeSpyBonusIfEnemySpy(el.dataset.node);else if(G.pending?.type==='place_spy_bonus_influence')placeSpyBonusInfluence(el.dataset.node);else if(G.pending?.type==='place_spy_then_supplant')placeSpyThenSupplant(el.dataset.node);else if(G.pending?.type==='place_spy_steal_trophies')placeSpyStealTrophies(el.dataset.node);else if(G.pending?.type==='place_spy_bonus_strength')placeSpyBonusStrength(el.dataset.node);}));
+  document.querySelectorAll('.map-area').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('.map-slot')||e.target.closest('.map-spy'))return;if(G.pending?.type==='place_spy')placeSpy(el.dataset.node);else if(G.pending?.type==='place_spy_opponents_discard')placeSpyOpponentsDiscard(el.dataset.node);else if(G.pending?.type==='place_spy_bonus_if_enemy_spy')placeSpyBonusIfEnemySpy(el.dataset.node);else if(G.pending?.type==='place_spy_bonus_influence')placeSpyBonusInfluence(el.dataset.node);else if(G.pending?.type==='place_spy_then_supplant')placeSpyThenSupplant(el.dataset.node);else if(G.pending?.type==='place_spy_steal_trophies')placeSpyStealTrophies(el.dataset.node);else if(G.pending?.type==='place_spy_bonus_strength')placeSpyBonusStrength(el.dataset.node);}));
   document.querySelectorAll('.map-spy').forEach(el=>el.addEventListener('click',()=>{if(G.pending?.type==='return_enemy_spy'&&parseInt(el.dataset.spy)!==G.currentPlayer)returnEnemySpyOnly(el.dataset.node,parseInt(el.dataset.spy));else if(G.pending?.type==='return_enemy'&&parseInt(el.dataset.spy)!==G.currentPlayer)returnEnemySpy(el.dataset.node,parseInt(el.dataset.spy));else if(G.pending?.type==='return_spy_supplant_single'&&parseInt(el.dataset.spy)===G.currentPlayer)returnSpySupplantSingle(el.dataset.node);else if(G.pending?.type==='return_spies_supplant'&&parseInt(el.dataset.spy)===G.currentPlayer)returnSpyForSupplant(el.dataset.node);else if(G.pending?.type==='return_own_spy'&&parseInt(el.dataset.spy)===G.currentPlayer)returnOwnSpy(el.dataset.node);else spendReturnSpy(el.dataset.node,parseInt(el.dataset.spy));}));
 }
 
@@ -2776,6 +3063,8 @@ function slFill(s){return s.owner===null?'#252540':s.owner==='white'?'#999':COLO
 function slHL(n,si,pi){const s=n.slots[si];if(s.owner===null){if(G.phase==='setup_deploy'&&n.nodeType==='city'&&n.starting)return'#0f0';if(G.phase==='play'&&G.pending?.type==='deploy_trophy_place')return'#0c0';
     if(G.phase==='play'&&G.pending?.type==='move_enemy_place')return'#0c0';
     if(G.phase==='play'&&(G.pending?.type==='deploy'||(!G.pending&&G.strength>=1))){if(playerHasPresence(pi,n.id)||!hasTroopsOnBoard(pi))return'#0c0';}return'#333';}if(s.owner!==pi&&s.owner!==null){if(G.pending?.type==='assassinate'&&playerHasPresence(pi,n.id))return'#f33';
+    if(G.pending?.type==='assassinate_then_discard'&&s.owner!==pi&&s.owner!==null&&playerHasPresence(pi,n.id))return'#f33';
+    if(G.pending?.type==='assassinate_area_gain_influence'&&s.owner!==pi&&s.owner!==null&&playerHasPresence(pi,n.id)&&(G.pending.area===null||G.pending.area===n.id))return'#f33';
     if(G.pending?.type==='assassinate_at_spy'&&G._recentSpyArea===n.id)return'#f33';
     if(G.pending?.type==='move_enemy'&&playerHasPresence(pi,n.id))return'#f80';
     if(G.pending?.type==='supplant_in_areas'&&G.pending.areas?.includes(n.id))return'#f33';
@@ -2789,6 +3078,8 @@ function handleSlotClick(nid,si){if(G.phase==='setup_deploy'){setupDeploy(nid);r
   else if(G.pending?.type==='return_enemy'){returnEnemy(nid,si);}
   else if(G.pending?.type==='supplant_white'&&s.owner==='white'){supplantWhite(nid,si);}
   else if(G.pending?.type==='supplant_white_presence'&&s.owner==='white'){supplantWhitePresence(nid,si);}
+  else if(G.pending?.type==='assassinate_then_discard'){assassinateThenDiscard(nid,si);}
+  else if(G.pending?.type==='assassinate_area_gain_influence'){assassinateAreaGainInfluence(nid,si);}
   else if(G.pending?.type==='assassinate_white'&&s.owner==='white'){assassinateWhite(nid,si);}
   else if(G.pending?.type==='assassinate_white_area'&&s.owner==='white'){assassinateWhiteArea(nid,si);}
   else if(G.pending?.type==='assassinate_at_spy'){assassinateAtSpy(nid,si);}
@@ -3054,6 +3345,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 
 function startGameWithDecks(selectedDecks) {
+  if(window.lobbyMusic){window.lobbyMusic.pause();window.lobbyMusic.currentTime=0;}
   // Filter market pool to only selected decks
   if (selectedDecks.length > 0) {
     const filtered = MARKET_POOL_DEF.filter(c => !c.deck || selectedDecks.includes(c.deck));
@@ -3184,6 +3476,7 @@ const SOUNDS = {
   coin: new Audio('sounds/coin.mp3')
 };
 function playSound(name) {
+  _sndQ.push(name);
   if (isOnline && isHost) window._soundQueue.push(name);
   if (soundMuted) return;
   const s = SOUNDS[name];
@@ -3199,12 +3492,14 @@ function playSound(name) {
   }
 }
 function playDeathSound() {
+  var _dn2 = Math.random()<0.5?"death1":Math.random()<0.75?"death2":"death3"; _sndQ.push(_dn2);
   const r = Math.random();
   if (r < 0.50) playSound('death1');
   else if (r < 0.80) playSound('death2');
   else playSound('death3');
 }
 function playDeploySound() {
+  var _dn = Math.random()<0.45?"deploy1":Math.random()<0.82?"deploy2":"deploy3"; _sndQ.push(_dn);
   const r = Math.random();
   if (r < 0.45) playSound('deploy1');
   else if (r < 0.90) playSound('deploy2');
@@ -3224,9 +3519,12 @@ function revealMarketCard(idx) {
 
 // Play card-specific sound (by 3-letter code in name)
 function playCardSound(card) {
-  if (!card || !card.name || soundMuted) return;
+  if (!card || !card.name) return;
   const code = card.name.slice(0,3).trim();
   if (!code || code.length < 2) return;
+  // Queue for online sync
+  if (isOnline && isHost) window._soundQueue.push('card:' + code);
+  if (soundMuted) return;
   try {
     const audio = new Audio('sounds/cards/' + code + '.wav');
     audio.onerror = () => { const a2 = new Audio('sounds/cards/' + code + '.mp3'); a2.volume=0.5; a2.play().catch(()=>{}); };
@@ -3521,6 +3819,7 @@ function joinGame() {
 }
 
 function connectToHost() {
+  document.querySelectorAll('button[onclick*=connectToHost]').forEach(function(b){b.disabled=true;b.textContent='Łączenie...'});
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer();
@@ -3580,7 +3879,10 @@ function handleClientMessage(data) {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if(data.snd&&data.snd.length)data.snd.forEach(function(s){if(s.indexOf('card:')===0){var code=s.slice(5);if(window._cS&&window._cS[code]){try{window._cS[code].cloneNode().play().catch(function(){});}catch(e){}}}else{playSound(s);}});
+    if (data.snd && data.snd.length) data.snd.forEach(function(s){
+      if(s.indexOf('card:')===0){ var code=s.slice(5); if(window.CARD_SOUNDS&&window.CARD_SOUNDS[code]){try{var c=window.CARD_SOUNDS[code].cloneNode();c.volume=0.5;c.play().catch(function(){});}catch(e){}} }
+      else { playSound(s); }
+    });
     render();
   }
   if (data.type === 'start') {
@@ -3598,9 +3900,9 @@ window._soundQueue = window._soundQueue || [];
 function broadcastState() {
   const stateStr = JSON.stringify(G);
   connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: window._sndQ||[]});
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
   });
-  window._sndQ=[];
+  _sndQ = [];
 }
 
 // executeNetAction replaced by wrapper
