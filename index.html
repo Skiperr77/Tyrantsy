@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants v16</title>
+<title>Tyrants v17</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
@@ -413,11 +413,8 @@ function netWrap(name, fn) {
       hostConn.send({type:'action', name, args});
       return;
     }
-    var _before = _sndQ.length;
     fn(...args);
     if (isOnline && isHost) broadcastState();
-    // Don't let sounds accumulate between broadcasts
-    
   };
 }
 
@@ -670,20 +667,8 @@ document.addEventListener('keydown', e => {
     </details>
     <button id="btn-load-map">📂 Wczytaj mapę</button>
     <button id="btn-load-cards">🃏 Wczytaj karty</button>
-    <button id="btn-load-sounds" onclick="
-      var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
-      inp.onchange=function(){var loaded=0;var total=inp.files.length;
-        Array.from(inp.files).forEach(function(f){var code=f.name.split('.')[0];
-          var r=new FileReader();r.onload=function(){
-            var audio=new Audio(r.result);
-            if(code.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=audio;audio.loop=true;audio.volume=0.3;audio.play().catch(function(){});}
-            else{window.CARD_SOUNDS[code]=audio;}
-            loaded++;document.getElementById('map-status').textContent='🔊 '+loaded+'/'+total;document.getElementById('map-status').style.color='#4ecdc4';
-          };r.readAsDataURL(f);
-        });
-      };inp.click();
-    ">🔊 Wczytaj dźwięki</button>
-    <span id="music-toggle" onclick="window.musicMuted=!window.musicMuted;if(window.musicMuted){if(window.lobbyMusic)window.lobbyMusic.pause();this.textContent='🔇';}else{if(window.lobbyMusic)window.lobbyMusic.play().catch(function(){});this.textContent='🔊';}" style="cursor:pointer;font-size:1.5em;margin-left:8px">🔊</span>
+    <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window._lobbyM)window._lobbyM.pause();window._lobbyM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{if(!window._cSnd)window._cSnd={};window._cSnd[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Wczytaj dźwięki</button>
+    <span onclick="if(window._lobbyM){if(window._lobbyM.paused){window._lobbyM.play().catch(function(){});this.textContent='🔊';}else{window._lobbyM.pause();this.textContent='🔇';}}" style="cursor:pointer;font-size:1.5em;margin-left:8px">🔊</span>
     <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
     <div id="deck-pick-section" style="display:none">
       <p style="font-size:.85em;color:#b44dff;margin:4px 0">Wybierz 2 talie do gry:</p>
@@ -746,8 +731,6 @@ document.addEventListener('keydown', e => {
 </div>
 
 <script>
-var _sndQ = [];
-window.CARD_SOUNDS = window.CARD_SOUNDS || {};
 const IMG_STORE = {};
 function storeImg(card) {
   if (!card || !card.image) return;
@@ -1147,7 +1130,7 @@ function playCard(cardId) {
   if (idx === -1) return;
   const card = p.hand.splice(idx, 1)[0];
   p.played.push(card);
-  var _sc=(card.name||'').slice(0,3).trim(); if(_sc && isOnline && isHost) _sndQ.push('card:'+_sc);
+  try{var _cs=(card.name||'').slice(0,3).trim();if(window._cSnd&&window._cSnd[_cs]){var _ca=window._cSnd[_cs].cloneNode();_ca.volume=0.5;_ca.play().catch(function(){});}}catch(e){}
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
@@ -3347,7 +3330,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 
 function startGameWithDecks(selectedDecks) {
-  if(window.lobbyMusic){window.lobbyMusic.pause();window.lobbyMusic.currentTime=0;}
+  if(window._lobbyM){window._lobbyM.pause();window._lobbyM.currentTime=0;}
   // Filter market pool to only selected decks
   if (selectedDecks.length > 0) {
     const filtered = MARKET_POOL_DEF.filter(c => !c.deck || selectedDecks.includes(c.deck));
@@ -3478,7 +3461,6 @@ const SOUNDS = {
   coin: new Audio('sounds/coin.mp3')
 };
 function playSound(name) {
-  if (isOnline && isHost) _sndQ.push(name);
   if (isOnline && isHost) window._soundQueue.push(name);
   if (soundMuted) return;
   const s = SOUNDS[name];
@@ -3878,10 +3860,9 @@ function handleClientMessage(data) {
     G = JSON.parse(data.state);
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
-    if (data.snd && data.snd.length) data.snd.forEach(function(s){
-      if(s.indexOf('card:')===0){ var code=s.slice(5); if(window.CARD_SOUNDS&&window.CARD_SOUNDS[code]){try{var c=window.CARD_SOUNDS[code].cloneNode();c.volume=0.5;c.play().catch(function(){});}catch(e){}} }
-      else { playSound(s); }
-    });
+    // Play card sounds locally
+    try{if(window._prevPlayed!==undefined){for(var _pi=0;_pi<G.players.length;_pi++){var _np=G.players[_pi].played.length;if(_np>window._prevPlayed[_pi]){var _card=G.players[_pi].played[_np-1];var _code=(_card.name||'').slice(0,3).trim();if(window._cSnd&&window._cSnd[_code]){var _a=window._cSnd[_code].cloneNode();_a.volume=0.5;_a.play().catch(function(){});}}}}}catch(e){}
+    window._prevPlayed=G.players.map(function(p){return p.played.length;});
     render();
   }
   if (data.type === 'start') {
@@ -3899,9 +3880,8 @@ window._soundQueue = window._soundQueue || [];
 function broadcastState() {
   const stateStr = JSON.stringify(G);
   connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog});
   });
-  _sndQ = [];
 }
 
 // executeNetAction replaced by wrapper
@@ -3946,11 +3926,8 @@ function netWrap(name, fn) {
       hostConn.send({type:'action', name, args});
       return;
     }
-    var _before = _sndQ.length;
     fn(...args);
     if (isOnline && isHost) broadcastState();
-    // Don't let sounds accumulate between broadcasts
-    
   };
 }
 
