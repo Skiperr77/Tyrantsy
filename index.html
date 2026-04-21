@@ -711,7 +711,13 @@ function toggleMusic() {
     </details>
     <button id="btn-load-map">📂 Wczytaj mapę</button>
     <button id="btn-load-cards">🃏 Wczytaj karty</button>
-    <button id="btn-load-sounds" onclick="loadSounds()">🔊 Wczytaj dźwięki</button>
+    <button id="btn-load-sounds" onclick="
+  var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
+  inp.onchange=function(){var loaded=0;for(var f of inp.files){var code=f.name.split('.')[0];
+    if(code.toLowerCase()==='menu'){var url=URL.createObjectURL(f);if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=new Audio(url);window.lobbyMusic.loop=true;window.lobbyMusic.volume=0.3;if(!window.musicMuted)window.lobbyMusic.play().catch(function(){});loaded++;}
+    else{(function(c){var r=new FileReader();r.onload=function(){if(!window.CARD_SOUNDS)window.CARD_SOUNDS={};window.CARD_SOUNDS[c]=new Audio(r.result);loaded++;document.getElementById('map-status').textContent='🔊 '+loaded+'/'+inp.files.length;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);})(code);}
+  }};inp.click();
+">🔊 Wczytaj dźwięki</button>
     <span id="music-toggle" onclick="toggleMusic()" style="cursor:pointer;font-size:1.5em;margin-left:8px">🔊</span>
     <div id="map-status" style="font-size:.85em;color:#888">Domyślna mapa i karty</div>
     <div id="deck-pick-section" style="display:none">
