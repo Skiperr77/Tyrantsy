@@ -335,8 +335,10 @@ function handleClientMessage(data) {
     G.adjacency = rebuildAdjacency();
     if (data.log) actionLog = data.log;
     if (data.sounds) data.sounds.forEach(s => playSound(s));
-    try{if(window._pp){for(var _j=0;_j<G.players.length;_j++){if(G.players[_j].played.length>window._pp[_j]){var _cd=G.players[_j].played[G.players[_j].played.length-1];var _co=(_cd.name||'').slice(0,3).trim();if(window._cS&&window._cS[_co])window._cS[_co].cloneNode().play().catch(function(){});}}}catch(e){}
-    window._pp=G.players.map(function(p){return p.played.length;});
+    if (data.snd) data.snd.forEach(function(s){
+      if(s.indexOf('card:')===0){var code=s.slice(5);if(window._cS&&window._cS[code]){try{window._cS[code].cloneNode().play().catch(function(){});}catch(e){}}}
+      else{playSound(s);}
+    });
     render();
   }
   if (data.type === 'start') {
@@ -1110,7 +1112,7 @@ function playCard(cardId) {
   if (idx === -1) return;
   const card = p.hand.splice(idx, 1)[0];
   p.played.push(card);
-  try{var _z=(card.name||'').slice(0,3).trim();if(window._cS&&window._cS[_z]){window._cS[_z].cloneNode().play().catch(function(){});}}catch(e){}
+  try{var _z=(card.name||'').slice(0,3).trim();if(window._cS&&window._cS[_z]){window._cS[_z].cloneNode().play().catch(function(){});}if(isOnline&&isHost&&_z)window._csQ=(window._csQ||[]),window._csQ.push('card:'+_z);}catch(e){}
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
@@ -2580,7 +2582,7 @@ function renderMarket(){
   let h=`<div class="card-sm" onclick="if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(HOUSE_GUARD)" onmouseleave="clearPreview()" style="${G.influence>=HOUSE_GUARD.cost?'border-color:#b44dff':''}">${cardInner(HOUSE_GUARD)}</div>`;
   h+=`<div class="card-sm" onclick="if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(LOLTH_PRIESTESS)" onmouseleave="clearPreview()" style="${G.influence>=LOLTH_PRIESTESS.cost?'border-color:#b44dff':''}">${cardInner(LOLTH_PRIESTESS)}</div>`;
   h+=`<div style="width:1px;background:#333;margin:0 4px;flex-shrink:0"></div>`;
-  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
+  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="if(!G.market[${i}]?._hidden)showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
   mc.innerHTML=h;
   document.getElementById('market-deck-count').textContent=G.marketDeck.length;
 }
@@ -3134,7 +3136,6 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('btn-ready').click();
     return;
   }
-  if (e.key === ' ' && !e.ctrlKey) { e.preventDefault(); if(!isOnline || G.currentPlayer===myPlayerId) endTurn(); }
   if (e.key === 'm' && !e.ctrlKey) { toggleMute(); const mi=document.getElementById('mute-ind'); if(mi)mi.remove(); if(soundMuted){const m=document.createElement('div');m.id='mute-ind';m.style.cssText='position:fixed;top:45px;right:8px;background:rgba(0,0,0,0.7);color:#e94560;padding:2px 8px;border-radius:6px;font-size:.75em;z-index:100';m.textContent='🔇';document.body.appendChild(m);} }
   if (e.key === 'z' && !e.ctrlKey) { e.preventDefault(); playAllCards(); }
   if (e.key >= '1' && e.key <= '9' && G?.pending?.type === 'choose_one') {
@@ -3601,8 +3602,9 @@ window._soundQueue = window._soundQueue || [];
 function broadcastState() {
   const stateStr = JSON.stringify(G);
   connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog});
+    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: window._csQ||[]});
   });
+  window._csQ=[];
 }
 
 // executeNetAction replaced by wrapper
