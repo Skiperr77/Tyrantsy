@@ -241,6 +241,8 @@ function setLocalMode() {
   var ls=document.getElementById('local-setup'); if(ls) ls.style.display='block';
   document.getElementById('btn-start').disabled=false;
   document.getElementById('btn-start').textContent='🎮 Rozpocznij grę';
+  // Scroll to start section
+  document.getElementById('btn-start').scrollIntoView({behavior:'smooth'});
   document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
   document.getElementById('online-status').style.color = '#4ecdc4';
   document.getElementById('join-input').style.display = 'none';
@@ -267,7 +269,7 @@ function hostGame() {
     document.getElementById('lobby-table-section').style.display='block';
     // Copy code on click
     document.getElementById('room-code-display').onclick = () => {
-      navigator.clipboard.writeText(id).then(() => {
+      var _t=document.createElement('textarea');_t.value=id;document.body.appendChild(_t);_t.select();document.execCommand('copy');document.body.removeChild(_t);(function(){
         document.getElementById('room-code-display').innerHTML = '<div style="color:#4ecdc4;font-size:1em">📋 Skopiowano!</div>';
         setTimeout(() => document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>', 1500);
       });
@@ -3550,6 +3552,8 @@ function setLocalMode() {
   var ls=document.getElementById('local-setup'); if(ls) ls.style.display='block';
   document.getElementById('btn-start').disabled=false;
   document.getElementById('btn-start').textContent='🎮 Rozpocznij grę';
+  // Scroll to start section
+  document.getElementById('btn-start').scrollIntoView({behavior:'smooth'});
   document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
   document.getElementById('online-status').style.color = '#4ecdc4';
   document.getElementById('join-input').style.display = 'none';
@@ -3557,6 +3561,7 @@ function setLocalMode() {
 }
 
 function hostGame() {
+  document.getElementById('lobby-table-section').style.display='block';
   isHost = true; isOnline = true;
   peer = new Peer();
   document.getElementById('online-status').textContent = 'Łączenie...';
@@ -3576,7 +3581,7 @@ function hostGame() {
     document.getElementById('lobby-table-section').style.display='block';
     // Copy code on click
     document.getElementById('room-code-display').onclick = () => {
-      navigator.clipboard.writeText(id).then(() => {
+      var _t=document.createElement('textarea');_t.value=id;document.body.appendChild(_t);_t.select();document.execCommand('copy');document.body.removeChild(_t);(function(){
         document.getElementById('room-code-display').innerHTML = '<div style="color:#4ecdc4;font-size:1em">📋 Skopiowano!</div>';
         setTimeout(() => document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>', 1500);
       });
@@ -3602,6 +3607,7 @@ function joinGame() {
 }
 
 function connectToHost() {
+  document.getElementById('lobby-table-section').style.display='block';
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer();
