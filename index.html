@@ -270,75 +270,115 @@ button, a, [onclick], [style*='cursor:pointer'], .section-toggle, .card-hand, .c
 .slot-death { animation:slotDeath 0.4s ease-in; }
 .slot-changed { animation:slotHighlight 2s ease-out; stroke:#ffd700 !important; }
 </style>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js">
-// === ONLINE NETWORKING (PeerJS) ===
-let peer = null;
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCdM68qjNN_C1VQgZKMYh1VESjALF9gs00",
+  authDomain: "tyrantsi.firebaseapp.com",
+  databaseURL: "https://tyrantsi-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "tyrantsi",
+  storageBucket: "tyrantsi.firebasestorage.app",
+  messagingSenderId: "341492799744",
+  appId: "1:341492799744:web:204877c70c50d5cffc7be5"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// === ONLINE NETWORKING (Firebase) ===
 let isHost = false;
 let isOnline = false;
 let myPlayerId = -1;
-let connections = []; // host: array of connections to clients
-let hostConn = null;  // client: connection to host
+let roomRef = null;
+let roomId = null;
+
+function generateRoomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
 
 function setLocalMode() {
   isOnline = false;
-  document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
+  document.getElementById('online-status').textContent = '\U0001f465 Tryb lokalny (hot-seat)';
   document.getElementById('online-status').style.color = '#4ecdc4';
   document.getElementById('room-code-display').style.display = 'none';
 }
 
 function hostGame() {
   isHost = true; isOnline = true;
-  peer = new Peer({
-    debug: 2,
-    host: '0.peerjs.com',
-    port: 443,
-    secure: true,
-    config: {
-      iceServers: [
-        {urls:'stun:stun.l.google.com:19302'},
-        {urls:'stun:stun1.l.google.com:19302'},
-        {urls:'stun:stun2.l.google.com:19302'},
-        {urls:'stun:stun3.l.google.com:19302'},
-        {urls:'stun:stun4.l.google.com:19302'},
-        {urls:'turn:a.relay.metered.ca:80',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:443',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'}
-      ]
-    }
-  });
-  document.getElementById('online-status').textContent = 'Łączenie...';
-  peer.on('open', id => {
+  document.getElementById('online-status').textContent = '\u0141\u0105czenie...';
+  
+  roomId = generateRoomCode();
+  roomRef = db.ref('rooms/' + roomId);
+  
+  const hostName = document.getElementById('host-name-input').value.trim() || 'Host';
+  myPlayerId = 0;
+  lobbyPlayers = [{name: hostName, ready: false}];
+  
+  // Create room in Firebase
+  roomRef.set({
+    host: hostName,
+    players: lobbyPlayers.map(function(p,i){return {name:p.name, ready:p.ready, color:p.color||COLORS[i]||ALL_COLORS[i].hex};}),
+    firstPlayer: lobbyFirstPlayer,
+    state: '',
+    log: [],
+    snd: [],
+    started: false,
+    timestamp: firebase.database.ServerValue.TIMESTAMP
+  }).then(function() {
     document.getElementById('room-code-display').style.display = 'block';
-    document.getElementById('room-code-text').textContent = id;
-    document.getElementById('lobby-room').style.display = 'block';
-    document.getElementById('online-status').textContent = '🏠 Jesteś hostem. Czekam na graczy...';
+    document.getElementById('room-code-text').textContent = roomId;
+    document.getElementById('online-status').textContent = '\U0001f3e0 Jeste\u015b hostem. Czekam na graczy...';
     document.getElementById('online-status').style.color = '#4ecdc4';
-    myPlayerId = 0;
-    const hostName = document.getElementById('host-name-input').value.trim() || 'Host';
-    lobbyPlayers = [{name:hostName, ready:false, conn:null}];
+    document.getElementById('lobby-room').style.display = 'block';
     document.getElementById('btn-ready-lobby').style.display = 'inline-block';
     document.getElementById('btn-start').disabled = true;
     document.getElementById('btn-start').textContent = 'Czekam na graczy...';
     renderLobbyStatus();
+    
     // Copy code on click
-    document.getElementById('room-code-display').onclick = () => {
-      navigator.clipboard.writeText(id).then(() => {
+    document.getElementById('room-code-display').onclick = function() {
+      navigator.clipboard.writeText(roomId).then(function() {
         document.getElementById('room-code-text').textContent = 'Skopiowano!';
-        setTimeout(() => document.getElementById('room-code-text').textContent = id, 1500);
+        setTimeout(function() { document.getElementById('room-code-text').textContent = roomId; }, 1500);
       });
     };
-  });
-  peer.on('connection', conn => {
-    connections.push(conn);
-    conn.on('open', () => {
-      updateOnlinePlayers();
-      conn.on('data', data => handleHostMessage(conn, data));
+    
+    // Listen for player joins
+    roomRef.child('players').on('value', function(snap) {
+      var players = snap.val();
+      if (!players) return;
+      lobbyPlayers = players.map(function(p) { return {name: p.name, ready: p.ready, color: p.color}; });
+      // Update COLORS
+      lobbyPlayers.forEach(function(p,i) { if(p.color) COLORS[i] = p.color; });
+      renderLobbyStatus();
     });
-    conn.on('close', () => {
-      connections = connections.filter(c => c !== conn);
-      updateOnlinePlayers();
+    
+    roomRef.child('firstPlayer').on('value', function(snap) {
+      var fp = snap.val();
+      if (fp !== null) { lobbyFirstPlayer = fp; renderLobbyStatus(); }
     });
+    
+    // Listen for actions from clients
+    roomRef.child('clientAction').on('value', function(snap) {
+      var action = snap.val();
+      if (!action || !action.name) return;
+      var fn = _local[action.name];
+      if (fn) {
+        fn.apply(null, action.args || []);
+        broadcastState();
+      }
+      // Clear the action
+      roomRef.child('clientAction').remove();
+    });
+    
+    // Clean up room on disconnect
+    roomRef.onDisconnect().remove();
+    
+  }).catch(function(err) {
+    document.getElementById('online-status').textContent = '\u274c B\u0142\u0105d: ' + err.message;
+    document.getElementById('online-status').style.color = '#e94560';
   });
 }
 
@@ -347,388 +387,128 @@ function joinGame() {
 }
 
 function connectToHost() {
-  const code = document.getElementById('room-code-input').value.trim();
+  var code = document.getElementById('room-code-input').value.trim().toUpperCase();
   if (!code) return;
-  peer = new Peer({
-    debug: 2,
-    host: '0.peerjs.com',
-    port: 443,
-    secure: true,
-    config: {
-      iceServers: [
-        {urls:'stun:stun.l.google.com:19302'},
-        {urls:'stun:stun1.l.google.com:19302'},
-        {urls:'stun:stun2.l.google.com:19302'},
-        {urls:'stun:stun3.l.google.com:19302'},
-        {urls:'stun:stun4.l.google.com:19302'},
-        {urls:'turn:a.relay.metered.ca:80',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:443',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'}
-      ]
+  
+  document.getElementById('online-status').textContent = '\u0141\u0105czenie...';
+  
+  roomId = code;
+  roomRef = db.ref('rooms/' + roomId);
+  
+  // Check if room exists
+  roomRef.once('value').then(function(snap) {
+    if (!snap.exists()) {
+      document.getElementById('online-status').textContent = '\u274c Pok\u00f3j nie istnieje';
+      document.getElementById('online-status').style.color = '#e94560';
+      return;
     }
-  });
-  document.getElementById('online-status').textContent = 'Łączenie...';
-  peer.on('open', () => {
-    // Try to find host by code - PeerJS uses full ID, we need to match
-    // Host's ID ends with the code (lowercased)
-    hostConn = peer.connect(code.toLowerCase());
-    if (!hostConn) {
-      // Try with the raw input as full peer ID
-      hostConn = peer.connect(code);
-    }
-    hostConn.on('open', () => {
-      document.getElementById('online-status').textContent = '🔗 Połączono z hostem!';
+    
+    var room = snap.val();
+    var playerName = document.getElementById('online-name-input').value.trim() || 'Gracz';
+    var players = room.players || [];
+    myPlayerId = players.length;
+    players.push({name: playerName, ready: false, color: COLORS[myPlayerId] || ALL_COLORS[myPlayerId].hex});
+    
+    // Add self to players
+    roomRef.child('players').set(players).then(function() {
+      document.getElementById('online-status').textContent = '\U0001f517 Po\u0142\u0105czono! Gracz #' + (myPlayerId+1);
       document.getElementById('online-status').style.color = '#4ecdc4';
-      hostConn.send({type:'join', name: document.getElementById('online-name-input').value.trim() || 'Gracz'});
       document.getElementById('lobby-room').style.display = 'block';
       document.getElementById('btn-ready-lobby').style.display = 'inline-block';
+      
+      // Listen for lobby updates
+      roomRef.child('players').on('value', function(snap2) {
+        var pl = snap2.val();
+        if (!pl) return;
+        lobbyPlayers = pl.map(function(p){return {name:p.name, ready:p.ready, color:p.color};});
+        lobbyPlayers.forEach(function(p,i){ if(p.color) COLORS[i] = p.color; });
+        renderLobbyStatus();
+      });
+      
+      roomRef.child('firstPlayer').on('value', function(snap2) {
+        var fp = snap2.val();
+        if (fp !== null) { lobbyFirstPlayer = fp; renderLobbyStatus(); }
+      });
+      
+      // Listen for game state
+      roomRef.child('state').on('value', function(snap2) {
+        var stateStr = snap2.val();
+        if (!stateStr || stateStr === '') return;
+        G = JSON.parse(stateStr);
+        G.adjacency = rebuildAdjacency();
+        render();
+      });
+      
+      // Listen for sounds
+      roomRef.child('snd').on('value', function(snap2) {
+        var sndArr = snap2.val();
+        if (!sndArr || !sndArr.length) return;
+        _playSnd(sndArr);
+        // Clear after playing
+        roomRef.child('snd').set([]);
+      });
+      
+      // Listen for log
+      roomRef.child('log').on('value', function(snap2) {
+        var logArr = snap2.val();
+        if (logArr) actionLog = logArr;
+      });
+      
+      // Listen for game start
+      roomRef.child('started').on('value', function(snap2) {
+        if (snap2.val() === true && G) {
+          document.getElementById('setup-screen').style.display = 'none';
+          document.getElementById('game-area').style.display = 'flex';
+          document.getElementById('top-bar').style.display = 'flex';
+          initMapControls();
+          render();
+        }
+      });
+      
     });
-    hostConn.on('data', data => handleClientMessage(data));
-    hostConn.on('close', () => {
-      document.getElementById('online-status').textContent = '❌ Rozłączono';
-      document.getElementById('online-status').style.color = '#e94560';
-    });
-    hostConn.on('error', err => {
-      document.getElementById('online-status').textContent = '❌ Błąd: ' + err;
-    });
+  }).catch(function(err) {
+    document.getElementById('online-status').textContent = '\u274c B\u0142\u0105d: ' + err.message;
+    document.getElementById('online-status').style.color = '#e94560';
   });
 }
 
-function updateOnlinePlayers() {
-  document.getElementById('online-players').textContent =
-    'Gracze: Host + ' + connections.length + ' połączonych';
-}
+function updateOnlinePlayers() {}
 
-// handleHostMessage moved to wrapper section
-
-// Client receives state from host
-function handleClientMessage(data) {
-  if (data.type === 'lobby') {
-    document.getElementById('lobby-room').style.display = 'block';
-    if (data.firstPlayer !== undefined) lobbyFirstPlayer = data.firstPlayer;
-    if (data.players) {
-      data.players.forEach(function(p,i){ if(p.color){COLORS[i]=p.color;} lobbyPlayers[i]=lobbyPlayers[i]||{};lobbyPlayers[i].name=p.name;lobbyPlayers[i].ready=p.ready;lobbyPlayers[i].color=p.color; });
-    }
-    renderLobbyStatus();
-  }
-  if (data.type === 'assignId') {
-    myPlayerId = data.playerId;
-    document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
-  }
-  if (data.type === 'state') {
-    G = JSON.parse(data.state);
-    G.adjacency = rebuildAdjacency();
-    if (data.log) actionLog = data.log;
-    if (data.snd && data.snd.length) data.snd.forEach(function(s) {
-      if (s.indexOf('card:') === 0) {
-        var code = s.slice(5);
-        if (window.CARD_SOUNDS && window.CARD_SOUNDS[code]) {
-          try { var c = window.CARD_SOUNDS[code].cloneNode(); c.volume = 0.5; c.play().catch(function(){}); } catch(e) {}
-        } else {
-          try { var a = new Audio('sounds/cards/' + code + '.wav'); a.onerror = function(){ var a2 = new Audio('sounds/cards/' + code + '.mp3'); a2.volume=0.5; a2.play().catch(function(){}); }; a.volume=0.5; a.play().catch(function(){}); } catch(e) {}
-        }
-      } else { playSound(s); }
-    });
-    render();
-  }
-  if (data.type === 'start') {
-    G = JSON.parse(data.state);
-    G.adjacency = rebuildAdjacency();
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('game-area').style.display = 'flex';
-    document.getElementById('top-bar').style.display = 'flex';
-    initMapControls();
-    render();
-  }
+function _playSnd(arr) {
+  if(!arr||!arr.length)return;
+  arr.forEach(function(s){
+    if(s.indexOf('card:')===0){
+      var code=s.slice(5);
+      if(window.CARD_SOUNDS[code]){try{window.CARD_SOUNDS[code].cloneNode().play().catch(function(){});}catch(e){}}
+      else{try{var a=new Audio('sounds/cards/'+code+'.wav');a.volume=0.5;a.play().catch(function(){});}catch(e){}}
+    } else { playSound(s); }
+  });
 }
 
 window._soundQueue = window._soundQueue || [];
 function broadcastState() {
-  const stateStr = JSON.stringify(G);
-  connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
-  });
-  _sndQ = [];
-}
-
-// executeNetAction replaced by wrapper
-
-// old wrappers removed
-
-// Override start to broadcast
-const _origStartGameWithDecks = startGameWithDecks;
-startGameWithDecks = function(decks) {
-  _origStartGameWithDecks(decks);
-  if (isHost && isOnline) {
-    const stateStr = JSON.stringify(G);
-    connections.forEach(c => {
-      if (c.open) c.send({type:'start', state: stateStr});
-    });
-  }
-};
-
-
-// === NETWORK ACTION WRAPPER ===
-// Wrap all game-modifying functions for online sync
-
-const _local = {
-  resetTurn,
-  playCard, playAllCards, buyCard, endTurn, skipPending, chooseOption,
-  spendDeploy, spendAssassinate, spendReturnTroop, spendReturnSpy,
-  placeSpy, promoteCard, devourCard, devourFromHand, devourFromInnerCircle,
-  recruitMadman, recruitMadmanAdjacent, supplantWhite, supplantWhitePresence,
-  supplant, assassinateWhite, assassinateAtSpy, returnOwnSpy, returnEnemy, returnEnemySpy,
-  moveEnemyPick, moveEnemyPlace, pickFromTrophy, deployTrophyTroop,
-  supplantInArea, returnSpyForSupplant, finishReturnSpies, returnSpySupplantSingle,
-  placeSpyBonusStrength, promoteFromDiscard, devourMarketReplace,
-  madmanDiscard, setupDeploy
-};
-
-function netWrap(name, fn) {
-  return function(...args) {
-    // Block if not your turn (online), except setupDeploy which has its own turn logic
-    if (isOnline && G && G.phase === 'play' && G.currentPlayer !== myPlayerId && name !== 'setupDeploy') return;
-    if (isOnline && G && G.phase === 'setup_deploy' && G.currentPlayer !== myPlayerId) return;
-    if (isOnline && !isHost && hostConn?.open) {
-      hostConn.send({type:'action', name, args});
-      return;
-    }
-    fn(...args);
-    if (isOnline && isHost) broadcastState();
+  if (!isHost || !isOnline || !roomRef) return;
+  var stateStr = JSON.stringify(G);
+  var updates = {
+    state: stateStr,
+    log: actionLog
   };
+  if (_sndQ.length > 0) {
+    updates.snd = _sndQ.slice();
+    _sndQ = [];
+  }
+  roomRef.update(updates);
 }
-
-// Rewrap all functions
-playCard = netWrap('playCard', _local.playCard);
-playAllCards = netWrap('playAllCards', _local.playAllCards);
-buyCard = netWrap('buyCard', _local.buyCard);
-endTurn = netWrap('endTurn', _local.endTurn);
-resetTurn = netWrap('resetTurn', _local.resetTurn);
-skipPending = netWrap('skipPending', _local.skipPending);
-chooseOption = netWrap('chooseOption', _local.chooseOption);
-spendDeploy = netWrap('spendDeploy', _local.spendDeploy);
-spendAssassinate = netWrap('spendAssassinate', _local.spendAssassinate);
-spendReturnTroop = netWrap('spendReturnTroop', _local.spendReturnTroop);
-spendReturnSpy = netWrap('spendReturnSpy', _local.spendReturnSpy);
-placeSpy = netWrap('placeSpy', _local.placeSpy);
-promoteCard = netWrap('promoteCard', _local.promoteCard);
-devourCard = netWrap('devourCard', _local.devourCard);
-devourFromHand = netWrap('devourFromHand', _local.devourFromHand);
-devourFromInnerCircle = netWrap('devourFromInnerCircle', _local.devourFromInnerCircle);
-recruitMadman = netWrap('recruitMadman', _local.recruitMadman);
-recruitMadmanAdjacent = netWrap('recruitMadmanAdjacent', _local.recruitMadmanAdjacent);
-supplantWhite = netWrap('supplantWhite', _local.supplantWhite);
-supplantWhitePresence = netWrap('supplantWhitePresence', _local.supplantWhitePresence);
-supplant = netWrap('supplant', _local.supplant);
-assassinateWhite = netWrap('assassinateWhite', _local.assassinateWhite);
-assassinateAtSpy = netWrap('assassinateAtSpy', _local.assassinateAtSpy);
-returnOwnSpy = netWrap('returnOwnSpy', _local.returnOwnSpy);
-returnEnemy = netWrap('returnEnemy', _local.returnEnemy);
-returnEnemySpy = netWrap('returnEnemySpy', _local.returnEnemySpy);
-moveEnemyPick = netWrap('moveEnemyPick', _local.moveEnemyPick);
-moveEnemyPlace = netWrap('moveEnemyPlace', _local.moveEnemyPlace);
-pickFromTrophy = netWrap('pickFromTrophy', _local.pickFromTrophy);
-deployTrophyTroop = netWrap('deployTrophyTroop', _local.deployTrophyTroop);
-supplantInArea = netWrap('supplantInArea', _local.supplantInArea);
-returnSpyForSupplant = netWrap('returnSpyForSupplant', _local.returnSpyForSupplant);
-finishReturnSpies = netWrap('finishReturnSpies', _local.finishReturnSpies);
-returnSpySupplantSingle = netWrap('returnSpySupplantSingle', _local.returnSpySupplantSingle);
-placeSpyBonusStrength = netWrap('placeSpyBonusStrength', _local.placeSpyBonusStrength);
-promoteFromDiscard = netWrap('promoteFromDiscard', _local.promoteFromDiscard);
-devourMarketReplace = netWrap('devourMarketReplace', _local.devourMarketReplace);
-madmanDiscard = netWrap('madmanDiscard', _local.madmanDiscard);
-setupDeploy = netWrap('setupDeploy', _local.setupDeploy);
-
-// Fix host message handler to use _local functions
-function handleHostMessage(conn, data) {
-  if (data.type === 'join') {
-    conn.playerId = lobbyPlayers.length;
-    lobbyPlayers.push({name: data.name || 'Gracz '+(conn.playerId+1), ready:false, conn});
-    conn.send({type:'assignId', playerId: conn.playerId});
-    updateLobby();
-    if (G) conn.send({type:'state', state: JSON.stringify(G), log: actionLog});
-  }
-  if (data.type === 'ready') {
-    const lp = lobbyPlayers.find(p => p.conn === conn);
-    if (lp) lp.ready = true;
-    updateLobby();
-  }
-  if (data.type === 'color') {
-    var lp = lobbyPlayers[data.playerIdx];
-    if (lp) { lp.color = data.color; COLORS[data.playerIdx] = data.color; COLOR_NAMES[data.playerIdx] = (ALL_COLORS.find(function(c){return c.hex===data.color;})||{}).name||''; }
-    updateLobby();
-  }
-  if (data.type === 'action') {
-    // Execute locally using _local (unwrapped) to avoid infinite loop
-    const fn = _local[data.name];
-    if (fn) { fn(...data.args); broadcastState(); }
-  }
-}
-
-
-// === LOBBY SYSTEM ===
-let lobbyPlayers = []; // [{name, ready, conn, color}]
-let lobbyFirstPlayer = 0;
 
 function updateLobby() {
-  if (!isHost) return;
-  const data = {
-    type: 'lobby',
-    players: lobbyPlayers.map(function(p,i){return {name:p.name, ready:p.ready, color:p.color||COLORS[i]||ALL_COLORS[i].hex};}), firstPlayer: lobbyFirstPlayer,
-    settings: {
-      decks: Array.from(document.querySelectorAll('.deck-setup-chk:checked')).map(c=>c.value),
-      sectors: document.getElementById('sector-select')?.value || 'auto',
-      playerCount: lobbyPlayers.length
-    }
-  };
-  connections.forEach(c => { if(c.open) c.send(data); });
+  if (!isHost || !roomRef) return;
+  roomRef.child('players').set(
+    lobbyPlayers.map(function(p,i){return {name:p.name, ready:p.ready, color:p.color||COLORS[i]||ALL_COLORS[i].hex};})
+  );
+  roomRef.child('firstPlayer').set(lobbyFirstPlayer);
   renderLobbyStatus();
 }
 
-function renderLobbyStatus() {
-  var tb = document.getElementById('lobby-table-body');
-  if (tb) {
-    var h = '';
-    lobbyPlayers.forEach(function(p,i) {
-      var pc = (p.color || COLORS[i] || ALL_COLORS[i].hex);
-      var isFirst = (i === lobbyFirstPlayer);
-      h += '<tr><td>';
-      if (isFirst) h += '<span style="background:#ffd700;color:#000;padding:1px 6px;border-radius:10px;font-size:.75em;font-weight:bold;margin-right:4px">1st \u{1F451}</span>';
-      h += '<strong style="color:'+pc+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
-      h += '<td><div style="display:flex;gap:4px;flex-wrap:wrap">';
-      ALL_COLORS.forEach(function(c) {
-        var taken = lobbyPlayers.some(function(lp,li){return li!==i && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===c.hex;});
-        var sel = pc === c.hex;
-        h += '<div onclick="pickLobbyColor('+i+',\''+c.hex+'\')" title="'+c.name+'" style="width:22px;height:22px;border-radius:50%;background:'+c.hex+';cursor:'+(taken?'default':'pointer')+';border:3px solid '+(sel?'#fff':'transparent')+';opacity:'+(taken&&!sel?'.25':'1')+';box-shadow:'+(sel?'0 0 6px rgba(255,255,255,.4)':'none')+'"></div>';
-      });
-      h += '</div></td>';
-      h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
-    });
-    tb.innerHTML = h;
-  }
-  var btn = document.getElementById('btn-start');
-  if (isOnline && isHost) {
-    var allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(function(p){return p.ready;});
-    btn.disabled = !allReady;
-    btn.textContent = allReady ? 'Rozpocznij grę' : 'Czekam na graczy...';
-  }
-}
-
-function updateFirstPlayerSelect() {
-  var sel = document.getElementById('first-player-select');
-  if (!sel) return;
-  sel.innerHTML = lobbyPlayers.map(function(p,i){ return '<option value="'+i+'"'+(i===lobbyFirstPlayer?' selected':'')+'>'+p.name+(i===0?' (Host)':'')+'</option>'; }).join('');
-}
-function setFirstPlayer(idx) {
-  lobbyFirstPlayer = idx;
-  if (isHost) updateLobby();
-  renderLobbyStatus();
-  updateFirstPlayerSelect();
-}
-function randomFirstPlayer() {
-  setFirstPlayer(Math.floor(Math.random() * lobbyPlayers.length));
-}
-
-function pickLobbyColor(playerIdx, hex) {
-  if (!isHost && playerIdx !== myPlayerId) return;
-  var taken = lobbyPlayers.some(function(lp,li){return li!==playerIdx && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===hex;});
-  if (taken) return;
-  lobbyPlayers[playerIdx].color = hex;
-  COLORS[playerIdx] = hex;
-  COLOR_NAMES[playerIdx] = ALL_COLORS.find(function(c){return c.hex===hex;})?.name || '';
-  if (isHost) updateLobby();
-  renderLobbyStatus();
-  if (!isHost && hostConn && hostConn.open) hostConn.send({type:'color', playerIdx:myPlayerId, color:hex});
-}
-
-function setReady() {
-  if (isHost) {
-    lobbyPlayers[0].ready = true;
-    updateLobby();
-  } else if (hostConn?.open) {
-    hostConn.send({type:'ready'});
-  }
-  var _rb=document.getElementById('btn-ready-lobby');_rb.textContent='✅ Gotowy!';_rb.disabled=true;_rb.style.background='#4ecdc4';_rb.style.color='#000';
-}
-
-
-// === TURN RESET ===
-let _turnStartState = null;
-let _canResetTurn = true;
-
-function saveTurnStart() {
-  G._usedFocusIds = [];
-  _turnStartState = JSON.stringify(G);
-  _canResetTurn = true;
-  updateResetButton();
-  // Play local "your turn" sound
-  if (!isOnline || G.currentPlayer === myPlayerId) playLocalSound('myturn');
-  // Focus check happens when player is ready (after transition screen or immediately in online)
-  if (isOnline) checkHandFocus();
-}
-
-function checkHandFocus() {
-  var p = cp();
-  if (!G._usedFocusIds) G._usedFocusIds = [];
-  G._pendingFocus = [];
-  var focusCards = p.hand.filter(function(c) { return c.focusAspect && c.focusEffects && c.focusEffects.length > 0; });
-  focusCards.forEach(function(card) {
-    var used = G._usedFocusIds.indexOf(card.id) >= 0;
-    var matching = p.hand.filter(function(c) { return c.id !== card.id && c.aspect === card.focusAspect; });
-    if (matching.length > 0) {
-      G._pendingFocus.push({card: card, aspect: card.focusAspect, count: matching.length, effects: card.focusEffects, used: used});
-    }
-  });
-  if (G._pendingFocus.length > 0) {
-    showFocusPendingPopup();
-  }
-}
-
-function resetTurn() {
-  if (!_canResetTurn || !_turnStartState) return;
-  G = JSON.parse(_turnStartState);
-  G.adjacency = rebuildAdjacency();
-  logAction(`<span style="color:${cp().color}">${cp().name}</span>: ↩ resetuje turę`);
-  render();
-}
-
-function blockReset() {
-  _canResetTurn = false;
-  updateResetButton();
-}
-
-function updateResetButton() {
-  const btn = document.getElementById('btn-reset-turn');
-  if (btn) {
-    btn.disabled = !_canResetTurn;
-    btn.style.opacity = _canResetTurn ? '1' : '0.3';
-    btn.title = _canResetTurn ? 'Resetuj turę do początku' : 'Nie można resetować (odkryto nową kartę)';
-  }
-}
-
-// Debug panel (~)
-document.addEventListener('keydown', e => {
-  if (e.key === '`' || e.key === '~') {
-    e.preventDefault();
-    let dp = document.getElementById('debug-panel');
-    if (dp) { dp.remove(); return; }
-    dp = document.createElement('div');
-    dp.id = 'debug-panel';
-    dp.style.cssText = 'position:fixed;bottom:150px;left:10px;background:rgba(15,15,34,0.9);border:1px solid #555;border-radius:8px;padding:8px;z-index:200;font-size:.8em;display:flex;flex-direction:column;gap:4px';
-    dp.innerHTML = `
-      <span style="color:#e94560;font-weight:bold">🔧 Debug</span>
-      <button onclick="G.strength+=5;render()">+5 ⚔️</button>
-      <button onclick="G.influence+=5;render()">+5 💎</button>
-      <button onclick="G.strength+=20;render()">+20 ⚔️</button>
-      <button onclick="G.influence+=20;render()">+20 💎</button>
-      <button onclick="cp().vpTokens+=5;render()">+5 🏆</button>
-      <button onclick="drawCards(cp(),3);render()">Dobierz 3</button>
-      <button onclick="document.getElementById('debug-panel').remove()">Zamknij</button>
-    `;
-    document.body.appendChild(dp);
-  }
-});
 </script>
 </head>
 <body>
@@ -3580,18 +3360,10 @@ document.addEventListener('keyup', e => {
 // --- SOUND SYSTEM ---
 let soundMuted = false;
 window.SOUNDS = {
-  draw: new Audio('sounds/draw.wav'),
-  deploy1: new Audio('sounds/jednostka_1.mp3'),
-  deploy2: new Audio('sounds/jednostka_2.mp3'),
-  deploy3: new Audio('sounds/jednostka_3.mp3'),
-  death1: new Audio('sounds/death_1.mp3'),
-  death2: new Audio('sounds/death_2.mp3'),
-  death3: new Audio('sounds/death_3.mp3'),
-  awans: new Audio('sounds/awans.mp3'),
-  allcards: new Audio('sounds/allcards.wav'),
-  coin: new Audio('sounds/coin.mp3'),
-  myturn: new Audio('sounds/myturn.mp3'),
-  denied: new Audio('sounds/denied.mp3')
+  draw: null, deploy1: null, deploy2: null, deploy3: null,
+  death1: null, death2: null, death3: null,
+  awans: null, allcards: null, coin: null,
+  myturn: null, denied: null
 };
 function playSound(name) {
   _sndQ.push(name);
@@ -3621,7 +3393,7 @@ function playDeploySound() {
   else playSound('deploy3');
 }
 let audioUnlocked=false;
-function unlockAudio(){if(audioUnlocked)return;audioUnlocked=true;Object.values(window.SOUNDS).forEach(s=>{s.volume=0;s.play().then(()=>{s.pause();s.currentTime=0;s.volume=0.4}).catch(()=>{})});}
+function unlockAudio(){if(audioUnlocked)return;audioUnlocked=true;Object.values(window.SOUNDS).forEach(s=>{if(!s)return;s.volume=0;s.play().then(()=>{s.pause();s.currentTime=0;s.volume=0.4}).catch(()=>{})});}
 document.addEventListener('click',unlockAudio,{once:true});
 document.addEventListener('keydown',unlockAudio,{once:true});
 function revealFocusCard(cardId) {
@@ -3665,7 +3437,7 @@ function playCardSound(card) {
 }
 
 // Preload all sounds
-Object.values(window.SOUNDS).forEach(s => { s.preload = 'auto'; s.load(); });
+// Sounds loaded via button in lobby
 
 function togglePanelZoom(el) {
   el.classList.toggle('panel-zoomed-single');
@@ -3913,197 +3685,86 @@ function onPanelDrag(e) {
   _panelDrag.el.style.transform = 'none';
 }
 
-// === ONLINE NETWORKING (PeerJS) ===
-let peer = null;
-let isHost = false;
-let isOnline = false;
-let myPlayerId = -1;
-let connections = []; // host: array of connections to clients
-let hostConn = null;  // client: connection to host
 
-function setLocalMode() {
-  isOnline = false;
-  document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
-  document.getElementById('online-status').style.color = '#4ecdc4';
-  document.getElementById('room-code-display').style.display = 'none';
-}
+// === LOBBY FUNCTIONS ===
+let lobbyPlayers = [];
+let lobbyFirstPlayer = 0;
 
-function hostGame() {
-  isHost = true; isOnline = true;
-  peer = new Peer({
-    debug: 2,
-    host: '0.peerjs.com',
-    port: 443,
-    secure: true,
-    config: {
-      iceServers: [
-        {urls:'stun:stun.l.google.com:19302'},
-        {urls:'stun:stun1.l.google.com:19302'},
-        {urls:'stun:stun2.l.google.com:19302'},
-        {urls:'stun:stun3.l.google.com:19302'},
-        {urls:'stun:stun4.l.google.com:19302'},
-        {urls:'turn:a.relay.metered.ca:80',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:443',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'}
-      ]
-    }
-  });
-  document.getElementById('online-status').textContent = 'Łączenie...';
-  peer.on('open', id => {
-    document.getElementById('room-code-display').style.display = 'block';
-    document.getElementById('room-code-text').textContent = id;
-    document.getElementById('lobby-room').style.display = 'block';
-    document.getElementById('online-status').textContent = '🏠 Jesteś hostem. Czekam na graczy...';
-    document.getElementById('online-status').style.color = '#4ecdc4';
-    myPlayerId = 0;
-    const hostName = document.getElementById('host-name-input').value.trim() || 'Host';
-    lobbyPlayers = [{name:hostName, ready:false, conn:null}];
-    document.getElementById('btn-ready-lobby').style.display = 'inline-block';
-    document.getElementById('btn-start').disabled = true;
-    document.getElementById('btn-start').textContent = 'Czekam na graczy...';
-    renderLobbyStatus();
-    // Copy code on click
-    document.getElementById('room-code-display').onclick = () => {
-      navigator.clipboard.writeText(id).then(() => {
-        document.getElementById('room-code-text').textContent = 'Skopiowano!';
-        setTimeout(() => document.getElementById('room-code-text').textContent = id, 1500);
+function renderLobbyStatus() {
+  var tb = document.getElementById('lobby-table-body');
+  if (tb) {
+    var h = '';
+    lobbyPlayers.forEach(function(p,i) {
+      var pc = (p.color || COLORS[i] || ALL_COLORS[i].hex);
+      var isFirst = (i === lobbyFirstPlayer);
+      h += '<tr><td>';
+      if (isFirst) h += '<span style="background:#ffd700;color:#000;padding:1px 6px;border-radius:10px;font-size:.75em;font-weight:bold;margin-right:4px">1st \u{1F451}</span>';
+      h += '<strong style="color:'+pc+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
+      h += '<td><div style="display:flex;gap:4px;flex-wrap:wrap">';
+      ALL_COLORS.forEach(function(c) {
+        var taken = lobbyPlayers.some(function(lp,li){return li!==i && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===c.hex;});
+        var sel = pc === c.hex;
+        h += '<div onclick="pickLobbyColor('+i+',\''+c.hex+'\')" title="'+c.name+'" style="width:22px;height:22px;border-radius:50%;background:'+c.hex+';cursor:'+(taken?'default':'pointer')+';border:3px solid '+(sel?'#fff':'transparent')+';opacity:'+(taken&&!sel?'.25':'1')+';box-shadow:'+(sel?'0 0 6px rgba(255,255,255,.4)':'none')+'"></div>';
       });
-    };
-  });
-  peer.on('connection', conn => {
-    connections.push(conn);
-    conn.on('open', () => {
-      updateOnlinePlayers();
-      conn.on('data', data => handleHostMessage(conn, data));
+      h += '</div></td>';
+      h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'\u2705 Gotowy':'\u23f3 Oczekuje')+'</td></tr>';
     });
-    conn.on('close', () => {
-      connections = connections.filter(c => c !== conn);
-      updateOnlinePlayers();
-    });
-  });
-}
-
-function joinGame() {
-  isOnline = true; isHost = false;
-}
-
-function connectToHost() {
-  const code = document.getElementById('room-code-input').value.trim();
-  if (!code) return;
-  peer = new Peer({
-    debug: 2,
-    host: '0.peerjs.com',
-    port: 443,
-    secure: true,
-    config: {
-      iceServers: [
-        {urls:'stun:stun.l.google.com:19302'},
-        {urls:'stun:stun1.l.google.com:19302'},
-        {urls:'stun:stun2.l.google.com:19302'},
-        {urls:'stun:stun3.l.google.com:19302'},
-        {urls:'stun:stun4.l.google.com:19302'},
-        {urls:'turn:a.relay.metered.ca:80',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:443',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
-        {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'}
-      ]
-    }
-  });
-  document.getElementById('online-status').textContent = 'Łączenie...';
-  peer.on('open', () => {
-    // Try to find host by code - PeerJS uses full ID, we need to match
-    // Host's ID ends with the code (lowercased)
-    hostConn = peer.connect(code.toLowerCase());
-    if (!hostConn) {
-      // Try with the raw input as full peer ID
-      hostConn = peer.connect(code);
-    }
-    hostConn.on('open', () => {
-      document.getElementById('online-status').textContent = '🔗 Połączono z hostem!';
-      document.getElementById('online-status').style.color = '#4ecdc4';
-      hostConn.send({type:'join', name: document.getElementById('online-name-input').value.trim() || 'Gracz'});
-      document.getElementById('lobby-room').style.display = 'block';
-      document.getElementById('btn-ready-lobby').style.display = 'inline-block';
-    });
-    hostConn.on('data', data => handleClientMessage(data));
-    hostConn.on('close', () => {
-      document.getElementById('online-status').textContent = '❌ Rozłączono';
-      document.getElementById('online-status').style.color = '#e94560';
-    });
-    hostConn.on('error', err => {
-      document.getElementById('online-status').textContent = '❌ Błąd: ' + err;
-    });
-  });
-}
-
-function updateOnlinePlayers() {
-  document.getElementById('online-players').textContent =
-    'Gracze: Host + ' + connections.length + ' połączonych';
-}
-
-// handleHostMessage moved to wrapper section
-
-// Client receives state from host
-function handleClientMessage(data) {
-  if (data.type === 'lobby') {
-    document.getElementById('lobby-room').style.display = 'block';
-    if (data.firstPlayer !== undefined) lobbyFirstPlayer = data.firstPlayer;
-    if (data.players) {
-      data.players.forEach(function(p,i){ if(p.color){COLORS[i]=p.color;} lobbyPlayers[i]=lobbyPlayers[i]||{};lobbyPlayers[i].name=p.name;lobbyPlayers[i].ready=p.ready;lobbyPlayers[i].color=p.color; });
-    }
-    renderLobbyStatus();
+    tb.innerHTML = h;
   }
-  if (data.type === 'assignId') {
-    myPlayerId = data.playerId;
-    document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
-  }
-  if (data.type === 'state') {
-    G = JSON.parse(data.state);
-    G.adjacency = rebuildAdjacency();
-    if (data.log) actionLog = data.log;
-    if(data.snd&&data.snd.length)data.snd.forEach(function(s){if(s.indexOf('card:')===0){var code=s.slice(5);if(window.CARD_SOUNDS&&window.CARD_SOUNDS[code]){try{var c=window.CARD_SOUNDS[code].cloneNode();c.volume=0.5;c.play().catch(function(){});}catch(e){}}else{try{var a=new Audio('sounds/cards/'+code+'.wav');a.onerror=function(){var a2=new Audio('sounds/cards/'+code+'.mp3');a2.volume=0.5;a2.play().catch(function(){});};a.volume=0.5;a.play().catch(function(){});}catch(e){}}}else{playSound(s);}});
-    render();
-  }
-  if (data.type === 'start') {
-    G = JSON.parse(data.state);
-    G.adjacency = rebuildAdjacency();
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('game-area').style.display = 'flex';
-    document.getElementById('top-bar').style.display = 'flex';
-    initMapControls();
-    render();
+  updateFirstPlayerSelect();
+  var btn = document.getElementById('btn-start');
+  if (isOnline && isHost) {
+    var allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(function(p){return p.ready;});
+    btn.disabled = !allReady;
+    btn.textContent = allReady ? 'Rozpocznij gr\u0119' : 'Czekam na graczy...';
   }
 }
 
-window._soundQueue = window._soundQueue || [];
-function broadcastState() {
-  const stateStr = JSON.stringify(G);
-  connections.forEach(c => {
-    if (c.open) c.send({type:'state', state: stateStr, log: actionLog, snd: _sndQ});
-  });
-  _sndQ = [];
+function updateFirstPlayerSelect() {
+  var sel = document.getElementById('first-player-select');
+  if (!sel) return;
+  sel.innerHTML = lobbyPlayers.map(function(p,i){ return '<option value="'+i+'"'+(i===lobbyFirstPlayer?' selected':'')+'>'+p.name+(i===0?' (Host)':'')+'</option>'; }).join('');
 }
 
-// executeNetAction replaced by wrapper
+function setFirstPlayer(idx) {
+  lobbyFirstPlayer = idx;
+  if (isHost) updateLobby();
+  renderLobbyStatus();
+}
 
-// old wrappers removed
+function randomFirstPlayer() {
+  setFirstPlayer(Math.floor(Math.random() * lobbyPlayers.length));
+}
 
-// Override start to broadcast
-const _origStartGameWithDecks = startGameWithDecks;
-startGameWithDecks = function(decks) {
-  _origStartGameWithDecks(decks);
-  if (isHost && isOnline) {
-    const stateStr = JSON.stringify(G);
-    connections.forEach(c => {
-      if (c.open) c.send({type:'start', state: stateStr});
-    });
+function pickLobbyColor(playerIdx, hex) {
+  if (!isHost && playerIdx !== myPlayerId) return;
+  var taken = lobbyPlayers.some(function(lp,li){return li!==playerIdx && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===hex;});
+  if (taken) return;
+  lobbyPlayers[playerIdx].color = hex;
+  COLORS[playerIdx] = hex;
+  COLOR_NAMES[playerIdx] = (ALL_COLORS.find(function(c){return c.hex===hex;})||{}).name||'';
+  if (isHost) updateLobby();
+  renderLobbyStatus();
+}
+
+function setReady() {
+  if (isHost) {
+    lobbyPlayers[0].ready = true;
+    updateLobby();
+  } else if (isOnline && roomRef) {
+    // Client sets own ready state
+    roomRef.child('players/' + myPlayerId + '/ready').set(true);
   }
-};
+  var _rb=document.getElementById('btn-ready-lobby');
+  _rb.textContent='\u2705 Gotowy!';
+  _rb.disabled=true;
+  _rb.style.background='#4ecdc4';
+  _rb.style.color='#000';
+}
 
-
-// === NETWORK ACTION WRAPPER ===
-// Wrap all game-modifying functions for online sync
+// === ONLINE NETWORKING (Firebase) ===
+// Main networking code is in the first script block above.
+// These are the netWrap overrides for game functions.
 
 const _local = {
   resetTurn,
@@ -4119,15 +3780,16 @@ const _local = {
 };
 
 function netWrap(name, fn) {
-  return function(...args) {
-    // Block if not your turn (online), except setupDeploy which has its own turn logic
+  return function() {
+    var args = Array.prototype.slice.call(arguments);
     if (isOnline && G && G.phase === 'play' && G.currentPlayer !== myPlayerId && name !== 'setupDeploy') return;
     if (isOnline && G && G.phase === 'setup_deploy' && G.currentPlayer !== myPlayerId) return;
-    if (isOnline && !isHost && hostConn?.open) {
-      hostConn.send({type:'action', name, args});
+    if (isOnline && !isHost && roomRef) {
+      // Send action to host via Firebase
+      roomRef.child('clientAction').set({name: name, args: args, t: Date.now()});
       return;
     }
-    fn(...args);
+    fn.apply(null, args);
     if (isOnline && isHost) broadcastState();
   };
 }
@@ -4173,118 +3835,17 @@ devourMarketReplace = netWrap('devourMarketReplace', _local.devourMarketReplace)
 madmanDiscard = netWrap('madmanDiscard', _local.madmanDiscard);
 setupDeploy = netWrap('setupDeploy', _local.setupDeploy);
 
-// Fix host message handler to use _local functions
-function handleHostMessage(conn, data) {
-  if (data.type === 'join') {
-    conn.playerId = lobbyPlayers.length;
-    lobbyPlayers.push({name: data.name || 'Gracz '+(conn.playerId+1), ready:false, conn});
-    conn.send({type:'assignId', playerId: conn.playerId});
-    updateLobby();
-    if (G) conn.send({type:'state', state: JSON.stringify(G), log: actionLog});
-  }
-  if (data.type === 'ready') {
-    const lp = lobbyPlayers.find(p => p.conn === conn);
-    if (lp) lp.ready = true;
-    updateLobby();
-  }
-  if (data.type === 'color') {
-    var lp = lobbyPlayers[data.playerIdx];
-    if (lp) { lp.color = data.color; COLORS[data.playerIdx] = data.color; COLOR_NAMES[data.playerIdx] = (ALL_COLORS.find(function(c){return c.hex===data.color;})||{}).name||''; }
-    updateLobby();
-  }
-  if (data.type === 'action') {
-    // Execute locally using _local (unwrapped) to avoid infinite loop
-    const fn = _local[data.name];
-    if (fn) { fn(...data.args); broadcastState(); }
-  }
-}
-
-
-// === LOBBY SYSTEM ===
-let lobbyPlayers = []; // [{name, ready, conn, color}]
-let lobbyFirstPlayer = 0;
-
-function updateLobby() {
-  if (!isHost) return;
-  const data = {
-    type: 'lobby',
-    players: lobbyPlayers.map(function(p,i){return {name:p.name, ready:p.ready, color:p.color||COLORS[i]||ALL_COLORS[i].hex};}), firstPlayer: lobbyFirstPlayer,
-    settings: {
-      decks: Array.from(document.querySelectorAll('.deck-setup-chk:checked')).map(c=>c.value),
-      sectors: document.getElementById('sector-select')?.value || 'auto',
-      playerCount: lobbyPlayers.length
-    }
-  };
-  connections.forEach(c => { if(c.open) c.send(data); });
-  renderLobbyStatus();
-}
-
-function renderLobbyStatus() {
-  var tb = document.getElementById('lobby-table-body');
-  if (tb) {
-    var h = '';
-    lobbyPlayers.forEach(function(p,i) {
-      var pc = (p.color || COLORS[i] || ALL_COLORS[i].hex);
-      var isFirst = (i === lobbyFirstPlayer);
-      h += '<tr><td>';
-      if (isFirst) h += '<span style="background:#ffd700;color:#000;padding:1px 6px;border-radius:10px;font-size:.75em;font-weight:bold;margin-right:4px">1st \u{1F451}</span>';
-      h += '<strong style="color:'+pc+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
-      h += '<td><div style="display:flex;gap:4px;flex-wrap:wrap">';
-      ALL_COLORS.forEach(function(c) {
-        var taken = lobbyPlayers.some(function(lp,li){return li!==i && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===c.hex;});
-        var sel = pc === c.hex;
-        h += '<div onclick="pickLobbyColor('+i+',\''+c.hex+'\')" title="'+c.name+'" style="width:22px;height:22px;border-radius:50%;background:'+c.hex+';cursor:'+(taken?'default':'pointer')+';border:3px solid '+(sel?'#fff':'transparent')+';opacity:'+(taken&&!sel?'.25':'1')+';box-shadow:'+(sel?'0 0 6px rgba(255,255,255,.4)':'none')+'"></div>';
-      });
-      h += '</div></td>';
-      h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
+// Override start to broadcast
+var _origStartGameWithDecks2 = startGameWithDecks;
+startGameWithDecks = function(decks) {
+  _origStartGameWithDecks2(decks);
+  if (isHost && isOnline && roomRef) {
+    roomRef.update({
+      state: JSON.stringify(G),
+      started: true
     });
-    tb.innerHTML = h;
   }
-  var btn = document.getElementById('btn-start');
-  if (isOnline && isHost) {
-    var allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(function(p){return p.ready;});
-    btn.disabled = !allReady;
-    btn.textContent = allReady ? 'Rozpocznij grę' : 'Czekam na graczy...';
-  }
-}
-
-function updateFirstPlayerSelect() {
-  var sel = document.getElementById('first-player-select');
-  if (!sel) return;
-  sel.innerHTML = lobbyPlayers.map(function(p,i){ return '<option value="'+i+'"'+(i===lobbyFirstPlayer?' selected':'')+'>'+p.name+(i===0?' (Host)':'')+'</option>'; }).join('');
-}
-function setFirstPlayer(idx) {
-  lobbyFirstPlayer = idx;
-  if (isHost) updateLobby();
-  renderLobbyStatus();
-  updateFirstPlayerSelect();
-}
-function randomFirstPlayer() {
-  setFirstPlayer(Math.floor(Math.random() * lobbyPlayers.length));
-}
-
-function pickLobbyColor(playerIdx, hex) {
-  if (!isHost && playerIdx !== myPlayerId) return;
-  var taken = lobbyPlayers.some(function(lp,li){return li!==playerIdx && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===hex;});
-  if (taken) return;
-  lobbyPlayers[playerIdx].color = hex;
-  COLORS[playerIdx] = hex;
-  COLOR_NAMES[playerIdx] = ALL_COLORS.find(function(c){return c.hex===hex;})?.name || '';
-  if (isHost) updateLobby();
-  renderLobbyStatus();
-  if (!isHost && hostConn && hostConn.open) hostConn.send({type:'color', playerIdx:myPlayerId, color:hex});
-}
-
-function setReady() {
-  if (isHost) {
-    lobbyPlayers[0].ready = true;
-    updateLobby();
-  } else if (hostConn?.open) {
-    hostConn.send({type:'ready'});
-  }
-  var _rb=document.getElementById('btn-ready-lobby');_rb.textContent='✅ Gotowy!';_rb.disabled=true;_rb.style.background='#4ecdc4';_rb.style.color='#000';
-}
-
+};
 
 // === TURN RESET ===
 let _turnStartState = null;
