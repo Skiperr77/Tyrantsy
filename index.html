@@ -1,39 +1,40 @@
 <!DOCTYPE html>
-<script>var _sndQ=[];window.CARD_SOUNDS=window.CARD_SOUNDS||{};
-function loadSoundsBtn() {
-  var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
-  inp.onchange=function(){var ld=0,tt=inp.files.length;
-    Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();
-      r.onload=function(){var a=new Audio(r.result);
-        if(c.toLowerCase()==='menu'){if(window._lobM)window._lobM.pause();window._lobM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}
-        else{window.CARD_SOUNDS[c]=a;}
-        ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';
-      };r.readAsDataURL(f);
-    });
-  };inp.click();
-}
-</script>
+<script>var _sndQ=[];window.CARD_SOUNDS=window.CARD_SOUNDS||{};</script>
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tyrants v24</title>
+<title>Tyrants v20</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
 
 /* Screens */
-#setup-screen, #transition-screen, #end-screen {
-  position:fixed; inset:0; background:#0d0d1a; display:flex;
-  flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:200;
-}
-#setup-screen h1 { font-size:2.5em; color:#b44dff; }
-#setup-screen select, #setup-screen input { padding:8px; font-size:1em; border-radius:6px; border:none; background:#1a1a2e; color:#eee; }
-button { padding:8px 20px; font-size:1em; border:none; border-radius:8px; background:#b44dff; color:#fff; cursor:pointer; transition:background .2s; }
-button:hover { background:#9333ea; }
-button:disabled { opacity:.4; }
-#player-names { display:flex; flex-direction:column; gap:8px; margin:8px 0; }
-#player-names input { padding:8px; border-radius:6px; border:none; width:200px; background:#1a1a2e; color:#eee; }
+#setup-screen{position:fixed;inset:0;background:#0d0d1a;display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto}
+#transition-screen,#end-screen{position:fixed;inset:0;background:#0d0d1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:200}
+button{padding:8px 20px;font-size:1em;border:none;border-radius:8px;background:#b44dff;color:#fff;cursor:pointer;transition:background .2s}
+button:hover{background:#9333ea}button:disabled{opacity:.4}
+.lby{max-width:820px;width:95%;padding:24px}.lby h1{font-size:2em;color:#b44dff;text-align:center;margin-bottom:4px}
+.lby .sub{text-align:center;color:#888;font-size:.9em;margin-bottom:20px}
+.lby-row{display:flex;gap:16px;margin-bottom:20px}
+.lpn{flex:1;background:#111128;border:1px solid #333;border-radius:12px;padding:16px}
+.lpn h2{color:#b44dff;font-size:1.1em;margin-bottom:4px}.lpn .d{color:#777;font-size:.75em;margin-bottom:12px;line-height:1.4}
+.lpn input,.lpn select{width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:6px;font-size:.9em;margin-bottom:8px}
+.lpn .pb{width:100%;padding:10px;background:#b44dff;color:#fff;border:none;border-radius:8px;font-size:1em;cursor:pointer}.lpn .pb:hover{background:#9333ea}
+.cd{background:#1a1a2e;border:2px solid #ffd700;border-radius:8px;padding:10px;text-align:center;margin:8px 0;cursor:pointer;display:none}
+.cd .c{color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all}.cd .h{color:#888;font-size:.7em}
+.fr{display:flex;gap:8px;margin-bottom:8px}.fr button{flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee}.fr button:hover{border-color:#b44dff}
+.lset{margin-top:12px;padding-top:12px;border-top:1px solid #333}.lset label{font-size:.85em;display:block;margin-bottom:6px;color:#aaa}
+.lset select{width:100%;padding:6px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:4px;font-size:.85em;margin-bottom:8px}
+.lrm{background:#111128;border:1px solid #333;border-radius:12px;padding:16px;margin-bottom:16px;display:none}
+.ltb{width:100%;border-collapse:collapse}.ltb th{text-align:left;color:#b44dff;font-size:.85em;padding:6px 8px;border-bottom:1px solid #333}
+.ltb td{padding:8px;border-bottom:1px solid #1a1a2e;font-size:.9em}
+.sr{color:#4ecdc4}.sw{color:#888}
+.sbtn{width:100%;padding:14px;font-size:1.2em;background:#4ecdc4;color:#000;border:none;border-radius:10px;cursor:pointer;font-weight:bold;margin-top:12px}
+.sbtn:hover{background:#3dbdb5}.sbtn:disabled{opacity:.4;cursor:default}
+.lsec{margin-top:20px;padding-top:16px;border-top:1px solid #333;text-align:center}
+#player-names{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+#player-names input{padding:8px;border-radius:6px;border:none;width:200px;background:#1a1a2e;color:#eee}
 
 /* Top bar */
 #top-bar {
@@ -238,14 +239,8 @@ let hostConn = null;  // client: connection to host
 
 function setLocalMode() {
   isOnline = false;
-  var ls=document.getElementById('local-setup'); if(ls) ls.style.display='block';
-  document.getElementById('btn-start').disabled=false;
-  document.getElementById('btn-start').textContent='🎮 Rozpocznij grę';
-  // Scroll to start section
-  document.getElementById('btn-start').scrollIntoView({behavior:'smooth'});
   document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
   document.getElementById('online-status').style.color = '#4ecdc4';
-  document.getElementById('join-input').style.display = 'none';
   document.getElementById('room-code-display').style.display = 'none';
 }
 
@@ -254,9 +249,9 @@ function hostGame() {
   peer = new Peer();
   document.getElementById('online-status').textContent = 'Łączenie...';
   peer.on('open', id => {
-    const code = id.slice(-6).toUpperCase();
     document.getElementById('room-code-display').style.display = 'block';
-    document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>';
+    document.getElementById('room-code-text').textContent = id;
+    document.getElementById('lobby-room').style.display = 'block';
     document.getElementById('online-status').textContent = '🏠 Jesteś hostem. Czekam na graczy...';
     document.getElementById('online-status').style.color = '#4ecdc4';
     myPlayerId = 0;
@@ -266,12 +261,11 @@ function hostGame() {
     document.getElementById('btn-start').disabled = true;
     document.getElementById('btn-start').textContent = 'Czekam na graczy...';
     renderLobbyStatus();
-    document.getElementById('lobby-table-section').style.display='block';
     // Copy code on click
     document.getElementById('room-code-display').onclick = () => {
-      var _t=document.createElement('textarea');_t.value=id;document.body.appendChild(_t);_t.select();document.execCommand('copy');document.body.removeChild(_t);(function(){
-        document.getElementById('room-code-display').innerHTML = '<div style="color:#4ecdc4;font-size:1em">📋 Skopiowano!</div>';
-        setTimeout(() => document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>', 1500);
+      navigator.clipboard.writeText(id).then(() => {
+        document.getElementById('room-code-text').textContent = 'Skopiowano!';
+        setTimeout(() => document.getElementById('room-code-text').textContent = id, 1500);
       });
     };
   });
@@ -290,8 +284,6 @@ function hostGame() {
 
 function joinGame() {
   isOnline = true; isHost = false;
-  document.getElementById('join-input').style.display = 'block';
-  document.getElementById('online-status').textContent = 'Wpisz kod pokoju hosta';
 }
 
 function connectToHost() {
@@ -311,6 +303,7 @@ function connectToHost() {
       document.getElementById('online-status').textContent = '🔗 Połączono z hostem!';
       document.getElementById('online-status').style.color = '#4ecdc4';
       hostConn.send({type:'join', name: document.getElementById('online-name-input').value.trim() || 'Gracz'});
+      document.getElementById('lobby-room').style.display = 'block';
       document.getElementById('btn-ready-lobby').style.display = 'inline-block';
     });
     hostConn.on('data', data => handleClientMessage(data));
@@ -334,21 +327,20 @@ function updateOnlinePlayers() {
 // Client receives state from host
 function handleClientMessage(data) {
   if (data.type === 'lobby') {
-    // Show lobby info
-    const el = document.getElementById('online-players');
-    let h = '<div style="margin-top:6px">';
-    data.players.forEach((p,i) => {
-      h += '<div style="color:'+COLORS[i]+';font-size:.9em">'+(p.ready?'✅':'⏳')+' '+p.name+(i===0?' (Host)':'')+'</div>';
-    });
-    h += '</div>';
-    if (data.settings) {
-      h += '<div style="font-size:.75em;color:#888;margin-top:4px">Talie: '+(data.settings.decks.join(', ')||'domyślne')+' | Sektory: '+data.settings.sectors+'</div>';
+    document.getElementById('lobby-room').style.display = 'block';
+    var tb = document.getElementById('lobby-table-body');
+    if (tb) {
+      var h = '';
+      data.players.forEach(function(p,i) {
+        h += '<tr><td><strong style="color:'+COLORS[i]+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
+        h += '<td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:'+COLORS[i]+';vertical-align:middle"></span></td>';
+        h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
+      });
+      tb.innerHTML = h;
     }
-    el.innerHTML = h;
   }
   if (data.type === 'assignId') {
     myPlayerId = data.playerId;
-      document.getElementById('lobby-table-section').style.display='block';
     document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
   }
   if (data.type === 'state') {
@@ -516,19 +508,19 @@ function updateLobby() {
 }
 
 function renderLobbyStatus() {
-  const el = document.getElementById('online-players');
-  if (!el) return;
-  let h = '<div style="margin-top:6px">';
-  lobbyPlayers.forEach((p,i) => {
-    h += `<div style="color:${COLORS[i]};font-size:.9em">${p.ready?'✅':'⏳'} ${p.name} ${i===0?'(Host)':''}</div>`;
-  });
-  h += '</div>';
-  el.innerHTML = h;
-  
-  // Enable start button only when all ready
-  const btn = document.getElementById('btn-start');
+  var tb = document.getElementById('lobby-table-body');
+  if (tb) {
+    var h = '';
+    lobbyPlayers.forEach(function(p,i) {
+      h += '<tr><td><strong style="color:'+COLORS[i]+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
+      h += '<td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:'+COLORS[i]+';vertical-align:middle"></span></td>';
+      h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
+    });
+    tb.innerHTML = h;
+  }
+  var btn = document.getElementById('btn-start');
   if (isOnline && isHost) {
-    const allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(p => p.ready);
+    var allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(function(p){return p.ready;});
     btn.disabled = !allReady;
     btn.textContent = allReady ? 'Rozpocznij grę' : 'Czekam na graczy...';
   }
@@ -541,8 +533,7 @@ function setReady() {
   } else if (hostConn?.open) {
     hostConn.send({type:'ready'});
   }
-  document.getElementById('btn-ready-lobby').textContent = '✅ Gotowy!';
-  document.getElementById('btn-ready-lobby').disabled = true;
+  var _rb=document.getElementById('btn-ready-lobby');_rb.textContent='✅ Gotowy!';_rb.disabled=true;_rb.style.background='#4ecdc4';_rb.style.color='#000';
 }
 
 
@@ -600,19 +591,6 @@ document.addEventListener('keydown', e => {
     document.body.appendChild(dp);
   }
 });
-
-function loadSoundsBtn() {
-  var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
-  inp.onchange=function(){var ld=0,tt=inp.files.length;
-    Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();
-      r.onload=function(){var a=new Audio(r.result);
-        if(c.toLowerCase()==='menu'){if(window._lobM)window._lobM.pause();window._lobM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}
-        else{window.CARD_SOUNDS[c]=a;}
-        ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';
-      };r.readAsDataURL(f);
-    });
-  };inp.click();
-}
 </script>
 </head>
 <body>
@@ -676,99 +654,71 @@ function loadSoundsBtn() {
   <div id="play-drop-zone">▶ Zagraj</div>
 
   <div id="setup-screen">
+    <div class="lby">
     <h1>⚔️ Tyrants of the Underdark</h1>
-    <p style="font-size:.85em;color:#888;margin-bottom:16px">Gra karciano-planszowa dla 2-4 graczy</p>
-
-    <!-- Online: Host / Join -->
-    <div style="display:flex;gap:16px;margin-bottom:16px;max-width:800px;width:95%">
-      <!-- HOST -->
-      <div style="flex:1;background:#111128;border:1px solid #333;border-radius:12px;padding:16px">
-        <h2 style="color:#b44dff;font-size:1.1em;margin-bottom:4px">🏠 Stwórz grę (Host)</h2>
-        <p style="color:#777;font-size:.75em;margin-bottom:10px">Tylko jeden gracz tworzy grę. Reszta dołącza kodem.</p>
-        <input id="host-name-input" placeholder="Nazwa gracza" style="width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:6px;margin-bottom:8px">
-        <button id="btn-host" onclick="hostGame()" style="width:100%;padding:10px">Stwórz pokój</button>
-        <div id="room-code-display" style="display:none;background:#1a1a2e;border:2px solid #ffd700;border-radius:8px;padding:10px;text-align:center;margin:8px 0;cursor:pointer" title="Kliknij aby skopiować"></div>
-        
-        <div style="margin-top:12px">
-          <div style="display:flex;gap:8px;margin-bottom:8px">
-            <button id="btn-load-map" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">📂 Wczytaj mapę</button>
-            <button id="btn-load-cards" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🃏 Wczytaj karty</button>
-            <button onclick="loadSoundsBtn()" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🔊 Dźwięki</button>
+    <p class="sub">Gra karciano-planszowa dla 2-4 graczy</p>
+    <div class="lby-row">
+      <div class="lpn">
+        <h2>🏠 Stwórz grę (Host)</h2>
+        <p class="d">Tylko jeden gracz tworzy grę. Reszta dołącza kodem.</p>
+        <input id="host-name-input" placeholder="Nazwa gracza" value="">
+        <button class="pb" id="btn-host" onclick="hostGame()">Stwórz pokój</button>
+        <div class="cd" id="room-code-display"><div class="c" id="room-code-text"></div><div class="h">Kliknij aby skopiować. Wyślij ten kod innym graczom.</div></div>
+        <div id="online-status" style="font-size:.8em;color:#888;margin:6px 0"></div>
+        <div class="fr">
+          <button id="btn-load-cards">🃏 Wczytaj karty</button>
+          <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
+        </div>
+        <div id="map-status" style="font-size:.8em;color:#888;margin:4px 0">Domyślna mapa i karty</div>
+        <button id="btn-load-map" style="width:100%;padding:6px;font-size:.8em;background:#1a1a2e;border:1px solid #444;border-radius:6px;color:#eee;cursor:pointer;margin-bottom:8px">📂 Wczytaj mapę</button>
+        <div class="lset">
+          <label>Talie do gry:</label>
+          <div id="deck-pick-section" style="display:none"><div class="dtl" id="deck-checkboxes-setup"></div>
+            <button id="btn-random-2" style="padding:4px 12px;font-size:.8em;background:#1a1a2e;border:1px solid #444;border-radius:6px;color:#eee;cursor:pointer">🎲 Wylosuj 2</button>
           </div>
-          <div id="map-status" style="font-size:.8em;color:#888;margin-bottom:8px">Domyślna mapa i karty</div>
-        </div>
-
-        <div id="deck-pick-section" style="display:none">
-          <p style="color:#b44dff;font-size:.85em;margin:4px 0">Talie do gry:</p>
-          <div id="deck-checkboxes-setup" style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0"></div>
-          <button id="btn-random-2" style="padding:4px 10px;font-size:.8em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🎲 Wylosuj 2</button>
-        </div>
-
-        <div style="margin-top:8px">
-          <label style="font-size:.85em;color:#aaa">Sektory mapy:</label>
-          <select id="sector-select" style="width:100%;padding:6px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:4px;font-size:.85em">
-            <option value="auto">Automatycznie (wg graczy)</option>
-            <option value="center">Tylko Centrum</option>
-            <option value="center+left">Centrum + Lewy</option>
-            <option value="center+right">Centrum + Prawy</option>
-            <option value="all">Wszystkie 3</option>
-          </select>
-        </div>
-
-        <div id="test-mode-section" style="display:none;margin-top:8px">
-          <label><input type="checkbox" id="chk-test-mode"> 🧪 Tryb testowy</label>
-          <div id="test-card-picker" style="display:none;max-height:150px;overflow-y:auto;border:1px solid #333;border-radius:6px;padding:6px;margin-top:4px;background:#1a1a2e"></div>
+          <div id="test-mode-section" style="display:none"><label><input type="checkbox" id="chk-test-mode"> 🧪 Tryb testowy</label>
+            <div id="test-card-picker" style="display:none;max-height:200px;overflow-y:auto;border:1px solid #333;border-radius:8px;padding:8px;margin-top:4px;background:#1a1a2e"></div></div>
+          <label>Sektory mapy:</label>
+          <select id="sector-select"><option value="auto">Automatycznie (wg graczy)</option><option value="center">Tylko Centrum</option><option value="center+left">Centrum + Lewy</option><option value="center+right">Centrum + Prawy</option><option value="all">Wszystkie 3</option></select>
         </div>
       </div>
-
-      <!-- JOIN -->
-      <div style="flex:1;background:#111128;border:1px solid #333;border-radius:12px;padding:16px">
-        <h2 style="color:#b44dff;font-size:1.1em;margin-bottom:4px">🔗 Dołącz do gry</h2>
-        <p style="color:#777;font-size:.75em;margin-bottom:10px">Wpisz nazwę i wklej kod od hosta.</p>
-        <input id="online-name-input" placeholder="Nazwa gracza" style="width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:6px;margin-bottom:8px">
-        <input id="room-code-input" placeholder="Wklej kod pokoju" style="width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:6px;margin-bottom:8px">
-        <button onclick="connectToHost()" style="width:100%;padding:10px">Połącz</button>
-        <div id="join-status" style="font-size:.85em;color:#888;margin-top:8px"></div>
-
-        <div style="margin-top:12px;display:flex;gap:8px">
-          <button id="btn-load-cards-join" onclick="document.getElementById('btn-load-cards').click()" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🃏 Wczytaj karty</button>
-          <button onclick="loadSoundsBtn()" style="flex:1;padding:8px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🔊 Dźwięki</button>
+      <div class="lpn">
+        <h2>🔗 Dołącz do gry</h2>
+        <p class="d">Wpisz swoje imię i wklej kod od hosta.</p>
+        <input id="online-name-input" placeholder="Nazwa gracza" value="">
+        <input id="room-code-input" placeholder="Wklej kod pokoju" value="">
+        <button class="pb" onclick="joinGame();connectToHost()">Połącz</button>
+        <div class="fr" style="margin-top:12px">
+          <button onclick="document.getElementById('btn-load-cards').click()">🃏 Wczytaj karty</button>
+          <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
         </div>
-        <p style="color:#666;font-size:.7em;margin-top:6px">Wczytaj te same pliki co host.</p>
+        <p class="d" style="margin-top:8px">Wczytaj te same pliki kart i dźwięków co host.</p>
       </div>
     </div>
-
-    <!-- Lobby table -->
-    <div id="lobby-table-section" style="display:none;background:#111128;border:1px solid #333;border-radius:12px;padding:16px;margin-bottom:16px;max-width:800px;width:95%">
-      <h2 style="color:#b44dff;font-size:1em;margin-bottom:8px">👥 Pokój gry</h2>
-      <div id="online-players" style="font-size:.85em"></div>
-      <div style="text-align:center;margin-top:10px">
-        <button id="btn-ready-lobby" onclick="setReady()" style="padding:10px 24px;font-size:1em;background:#b44dff;color:#fff;border:none;border-radius:8px;cursor:pointer">✋ Jestem gotowy</button>
-      </div>
+    <div class="lrm" id="lobby-room"><h2>👥 Pokój gry</h2>
+      <table class="ltb"><thead><tr><th>Gracz</th><th>Kolor</th><th>Status</th></tr></thead><tbody id="lobby-table-body"></tbody></table>
+      <div style="text-align:center;margin-top:8px"><button id="btn-ready-lobby" onclick="setReady()" style="display:none;padding:10px 24px;background:#b44dff;color:#fff;border:none;border-radius:8px;cursor:pointer">✋ Jestem gotowy</button></div>
+      <button class="sbtn" id="btn-start" disabled>Czekam na graczy...</button>
     </div>
-
-    <!-- Player count (for local) -->
-    <div style="max-width:800px;width:95%">
-      <label style="font-size:.85em;color:#aaa">Liczba graczy: <select id="player-count" style="padding:4px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:4px">
-        <option value="2">2</option><option value="3">3</option><option value="4">4</option>
-      </select></label>
-      <div id="player-names" style="margin:8px 0"></div>
-      <button id="btn-start" style="width:100%;padding:12px;font-size:1.1em">🎮 Rozpocznij grę</button>
-    </div>
-
-    <!-- Local mode -->
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #333;text-align:center;max-width:800px;width:95%">
+    <div class="lsec">
       <button id="btn-local" onclick="setLocalMode()" style="padding:10px 24px;background:#555;color:#eee;border:none;border-radius:8px;cursor:pointer;font-size:.95em">👥 Gra lokalna (hot-seat)</button>
-      <p style="color:#666;font-size:.75em;margin-top:4px">Gracze na jednym urządzeniu, przełączanie tur.</p>
-      <div id="local-setup" style="display:none;margin-top:10px">
-        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px">
-          <button onclick="document.getElementById('btn-load-cards').click()" style="padding:8px 12px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🃏 Wczytaj karty</button>
-          <button onclick="loadSoundsBtn()" style="padding:8px 12px;font-size:.85em;background:#1a1a2e;border:1px solid #444;border-radius:6px;cursor:pointer;color:#eee">🔊 Dźwięki</button>
-        </div>
-      </div>
+      <p class="d" style="margin-top:4px;color:#666;font-size:.75em">Gracze na jednym urządzeniu, przełączanie tur.</p>
+      <div style="margin-top:8px"><label>Liczba graczy: <select id="player-count"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+        <div id="player-names"></div></div>
     </div>
+    <div id="join-input" style="display:none"></div><div id="online-players" style="display:none"></div>
+    </div>
+  </div>
 
-    <div id="online-status" style="font-size:.85em;color:#888;margin-top:8px"></div>
+  <div id="deck-select-screen" style="display:none">
+    <h1>⚔️ Wybierz talie</h1>
+    <p style="font-size:.85em;color:#888">Wybierz 2 talie do gry (lub wylosuj)</p>
+    <div id="deck-checkboxes" style="display:flex;flex-direction:column;gap:8px;margin:12px 0"></div>
+    <div style="display:flex;gap:8px">
+      <button id="btn-random-decks">🎲 Wylosuj 2 talie</button>
+      <button id="btn-confirm-decks">✓ Graj z wybranymi</button>
+    </div>
+    <div id="deck-select-error" style="color:#e94560;font-size:.85em;margin-top:8px"></div>
   </div>
 
   <div id="transition-screen" style="display:none">
@@ -3540,35 +3490,28 @@ function onPanelDrag(e) {
 }
 
 // === ONLINE NETWORKING (PeerJS) ===
-peer = null;
-isHost = false;
-isOnline = false;
-myPlayerId = -1;
-connections = []; // host: array of connections to clients
-hostConn = null;  // client: connection to host
+let peer = null;
+let isHost = false;
+let isOnline = false;
+let myPlayerId = -1;
+let connections = []; // host: array of connections to clients
+let hostConn = null;  // client: connection to host
 
 function setLocalMode() {
   isOnline = false;
-  var ls=document.getElementById('local-setup'); if(ls) ls.style.display='block';
-  document.getElementById('btn-start').disabled=false;
-  document.getElementById('btn-start').textContent='🎮 Rozpocznij grę';
-  // Scroll to start section
-  document.getElementById('btn-start').scrollIntoView({behavior:'smooth'});
   document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
   document.getElementById('online-status').style.color = '#4ecdc4';
-  document.getElementById('join-input').style.display = 'none';
   document.getElementById('room-code-display').style.display = 'none';
 }
 
 function hostGame() {
-  document.getElementById('lobby-table-section').style.display='block';
   isHost = true; isOnline = true;
   peer = new Peer();
   document.getElementById('online-status').textContent = 'Łączenie...';
   peer.on('open', id => {
-    const code = id.slice(-6).toUpperCase();
     document.getElementById('room-code-display').style.display = 'block';
-    document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>';
+    document.getElementById('room-code-text').textContent = id;
+    document.getElementById('lobby-room').style.display = 'block';
     document.getElementById('online-status').textContent = '🏠 Jesteś hostem. Czekam na graczy...';
     document.getElementById('online-status').style.color = '#4ecdc4';
     myPlayerId = 0;
@@ -3578,12 +3521,11 @@ function hostGame() {
     document.getElementById('btn-start').disabled = true;
     document.getElementById('btn-start').textContent = 'Czekam na graczy...';
     renderLobbyStatus();
-    document.getElementById('lobby-table-section').style.display='block';
     // Copy code on click
     document.getElementById('room-code-display').onclick = () => {
-      var _t=document.createElement('textarea');_t.value=id;document.body.appendChild(_t);_t.select();document.execCommand('copy');document.body.removeChild(_t);(function(){
-        document.getElementById('room-code-display').innerHTML = '<div style="color:#4ecdc4;font-size:1em">📋 Skopiowano!</div>';
-        setTimeout(() => document.getElementById('room-code-display').innerHTML = '<div style="color:#ffd700;font-size:1em;font-weight:bold;word-break:break-all">' + id + '</div><div style="color:#888;font-size:.7em">Kliknij aby skopiować</div>', 1500);
+      navigator.clipboard.writeText(id).then(() => {
+        document.getElementById('room-code-text').textContent = 'Skopiowano!';
+        setTimeout(() => document.getElementById('room-code-text').textContent = id, 1500);
       });
     };
   });
@@ -3602,12 +3544,9 @@ function hostGame() {
 
 function joinGame() {
   isOnline = true; isHost = false;
-  document.getElementById('join-input').style.display = 'block';
-  document.getElementById('online-status').textContent = 'Wpisz kod pokoju hosta';
 }
 
 function connectToHost() {
-  document.getElementById('lobby-table-section').style.display='block';
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer();
@@ -3624,6 +3563,7 @@ function connectToHost() {
       document.getElementById('online-status').textContent = '🔗 Połączono z hostem!';
       document.getElementById('online-status').style.color = '#4ecdc4';
       hostConn.send({type:'join', name: document.getElementById('online-name-input').value.trim() || 'Gracz'});
+      document.getElementById('lobby-room').style.display = 'block';
       document.getElementById('btn-ready-lobby').style.display = 'inline-block';
     });
     hostConn.on('data', data => handleClientMessage(data));
@@ -3647,17 +3587,17 @@ function updateOnlinePlayers() {
 // Client receives state from host
 function handleClientMessage(data) {
   if (data.type === 'lobby') {
-    // Show lobby info
-    const el = document.getElementById('online-players');
-    let h = '<div style="margin-top:6px">';
-    data.players.forEach((p,i) => {
-      h += '<div style="color:'+COLORS[i]+';font-size:.9em">'+(p.ready?'✅':'⏳')+' '+p.name+(i===0?' (Host)':'')+'</div>';
-    });
-    h += '</div>';
-    if (data.settings) {
-      h += '<div style="font-size:.75em;color:#888;margin-top:4px">Talie: '+(data.settings.decks.join(', ')||'domyślne')+' | Sektory: '+data.settings.sectors+'</div>';
+    document.getElementById('lobby-room').style.display = 'block';
+    var tb = document.getElementById('lobby-table-body');
+    if (tb) {
+      var h = '';
+      data.players.forEach(function(p,i) {
+        h += '<tr><td><strong style="color:'+COLORS[i]+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
+        h += '<td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:'+COLORS[i]+';vertical-align:middle"></span></td>';
+        h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
+      });
+      tb.innerHTML = h;
     }
-    el.innerHTML = h;
   }
   if (data.type === 'assignId') {
     myPlayerId = data.playerId;
@@ -3819,19 +3759,19 @@ function updateLobby() {
 }
 
 function renderLobbyStatus() {
-  const el = document.getElementById('online-players');
-  if (!el) return;
-  let h = '<div style="margin-top:6px">';
-  lobbyPlayers.forEach((p,i) => {
-    h += `<div style="color:${COLORS[i]};font-size:.9em">${p.ready?'✅':'⏳'} ${p.name} ${i===0?'(Host)':''}</div>`;
-  });
-  h += '</div>';
-  el.innerHTML = h;
-  
-  // Enable start button only when all ready
-  const btn = document.getElementById('btn-start');
+  var tb = document.getElementById('lobby-table-body');
+  if (tb) {
+    var h = '';
+    lobbyPlayers.forEach(function(p,i) {
+      h += '<tr><td><strong style="color:'+COLORS[i]+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
+      h += '<td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:'+COLORS[i]+';vertical-align:middle"></span></td>';
+      h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
+    });
+    tb.innerHTML = h;
+  }
+  var btn = document.getElementById('btn-start');
   if (isOnline && isHost) {
-    const allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(p => p.ready);
+    var allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every(function(p){return p.ready;});
     btn.disabled = !allReady;
     btn.textContent = allReady ? 'Rozpocznij grę' : 'Czekam na graczy...';
   }
@@ -3844,8 +3784,7 @@ function setReady() {
   } else if (hostConn?.open) {
     hostConn.send({type:'ready'});
   }
-  document.getElementById('btn-ready-lobby').textContent = '✅ Gotowy!';
-  document.getElementById('btn-ready-lobby').disabled = true;
+  var _rb=document.getElementById('btn-ready-lobby');_rb.textContent='✅ Gotowy!';_rb.disabled=true;_rb.style.background='#4ecdc4';_rb.style.color='#000';
 }
 
 
@@ -3903,19 +3842,6 @@ document.addEventListener('keydown', e => {
     document.body.appendChild(dp);
   }
 });
-
-function loadSoundsBtn() {
-  var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;
-  inp.onchange=function(){var ld=0,tt=inp.files.length;
-    Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();
-      r.onload=function(){var a=new Audio(r.result);
-        if(c.toLowerCase()==='menu'){if(window._lobM)window._lobM.pause();window._lobM=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}
-        else{window.CARD_SOUNDS[c]=a;}
-        ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';
-      };r.readAsDataURL(f);
-    });
-  };inp.click();
-}
 </script>
 </body>
 </html>
