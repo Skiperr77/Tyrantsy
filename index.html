@@ -10,7 +10,7 @@
 body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
 
 /* Screens */
-#setup-screen{position:fixed;inset:0;background:#0d0d1a;display:flex;align-items:center;justify-content:center;z-index:200;overflow-y:auto}
+#setup-screen{position:fixed;inset:0;background:#0d0d1a;display:flex;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0}
 #transition-screen,#end-screen{position:fixed;inset:0;background:#0d0d1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:200}
 button{padding:8px 20px;font-size:1em;border:none;border-radius:8px;background:#b44dff;color:#fff;cursor:pointer;transition:background .2s}
 button:hover{background:#9333ea}button:disabled{opacity:.4}
@@ -329,16 +329,11 @@ function updateOnlinePlayers() {
 function handleClientMessage(data) {
   if (data.type === 'lobby') {
     document.getElementById('lobby-room').style.display = 'block';
-    var tb = document.getElementById('lobby-table-body');
-    if (tb) {
-      var h = '';
-      data.players.forEach(function(p,i) {
-        h += '<tr><td><strong style="color:'+COLORS[i]+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
-        h += '<td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:'+COLORS[i]+';vertical-align:middle"></span></td>';
-        h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
-      });
-      tb.innerHTML = h;
+    if (data.firstPlayer !== undefined) lobbyFirstPlayer = data.firstPlayer;
+    if (data.players) {
+      data.players.forEach(function(p,i){ if(p.color){COLORS[i]=p.color;} lobbyPlayers[i]=lobbyPlayers[i]||{};lobbyPlayers[i].name=p.name;lobbyPlayers[i].ready=p.ready;lobbyPlayers[i].color=p.color; });
     }
+    renderLobbyStatus();
   }
   if (data.type === 'assignId') {
     myPlayerId = data.playerId;
@@ -482,6 +477,11 @@ function handleHostMessage(conn, data) {
     if (lp) lp.ready = true;
     updateLobby();
   }
+  if (data.type === 'color') {
+    var lp = lobbyPlayers[data.playerIdx];
+    if (lp) { lp.color = data.color; COLORS[data.playerIdx] = data.color; COLOR_NAMES[data.playerIdx] = (ALL_COLORS.find(function(c){return c.hex===data.color;})||{}).name||''; }
+    updateLobby();
+  }
   if (data.type === 'action') {
     // Execute locally using _local (unwrapped) to avoid infinite loop
     const fn = _local[data.name];
@@ -491,13 +491,14 @@ function handleHostMessage(conn, data) {
 
 
 // === LOBBY SYSTEM ===
-let lobbyPlayers = []; // [{name, ready, conn}]
+let lobbyPlayers = []; // [{name, ready, conn, color}]
+let lobbyFirstPlayer = 0;
 
 function updateLobby() {
   if (!isHost) return;
   const data = {
     type: 'lobby',
-    players: lobbyPlayers.map(p => ({name:p.name, ready:p.ready})),
+    players: lobbyPlayers.map(function(p,i){return {name:p.name, ready:p.ready, color:p.color||COLORS[i]||ALL_COLORS[i].hex};}), firstPlayer: lobbyFirstPlayer,
     settings: {
       decks: Array.from(document.querySelectorAll('.deck-setup-chk:checked')).map(c=>c.value),
       sectors: document.getElementById('sector-select')?.value || 'auto',
@@ -513,8 +514,18 @@ function renderLobbyStatus() {
   if (tb) {
     var h = '';
     lobbyPlayers.forEach(function(p,i) {
-      h += '<tr><td><strong style="color:'+COLORS[i]+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
-      h += '<td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:'+COLORS[i]+';vertical-align:middle"></span></td>';
+      var pc = (p.color || COLORS[i] || ALL_COLORS[i].hex);
+      var isFirst = (i === lobbyFirstPlayer);
+      h += '<tr><td>';
+      if (isFirst) h += '<span style="background:#ffd700;color:#000;padding:1px 6px;border-radius:10px;font-size:.75em;font-weight:bold;margin-right:4px">1st \u{1F451}</span>';
+      h += '<strong style="color:'+pc+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
+      h += '<td><div style="display:flex;gap:4px;flex-wrap:wrap">';
+      ALL_COLORS.forEach(function(c) {
+        var taken = lobbyPlayers.some(function(lp,li){return li!==i && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===c.hex;});
+        var sel = pc === c.hex;
+        h += '<div onclick="pickLobbyColor('+i+',\''+c.hex+'\')" title="'+c.name+'" style="width:22px;height:22px;border-radius:50%;background:'+c.hex+';cursor:'+(taken?'default':'pointer')+';border:3px solid '+(sel?'#fff':'transparent')+';opacity:'+(taken&&!sel?'.25':'1')+';box-shadow:'+(sel?'0 0 6px rgba(255,255,255,.4)':'none')+'"></div>';
+      });
+      h += '</div></td>';
       h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
     });
     tb.innerHTML = h;
@@ -525,6 +536,33 @@ function renderLobbyStatus() {
     btn.disabled = !allReady;
     btn.textContent = allReady ? 'Rozpocznij grę' : 'Czekam na graczy...';
   }
+}
+
+function updateFirstPlayerSelect() {
+  var sel = document.getElementById('first-player-select');
+  if (!sel) return;
+  sel.innerHTML = lobbyPlayers.map(function(p,i){ return '<option value="'+i+'"'+(i===lobbyFirstPlayer?' selected':'')+'>'+p.name+(i===0?' (Host)':'')+'</option>'; }).join('');
+}
+function setFirstPlayer(idx) {
+  lobbyFirstPlayer = idx;
+  if (isHost) updateLobby();
+  renderLobbyStatus();
+  updateFirstPlayerSelect();
+}
+function randomFirstPlayer() {
+  setFirstPlayer(Math.floor(Math.random() * lobbyPlayers.length));
+}
+
+function pickLobbyColor(playerIdx, hex) {
+  if (!isHost && playerIdx !== myPlayerId) return;
+  var taken = lobbyPlayers.some(function(lp,li){return li!==playerIdx && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===hex;});
+  if (taken) return;
+  lobbyPlayers[playerIdx].color = hex;
+  COLORS[playerIdx] = hex;
+  COLOR_NAMES[playerIdx] = ALL_COLORS.find(function(c){return c.hex===hex;})?.name || '';
+  if (isHost) updateLobby();
+  renderLobbyStatus();
+  if (!isHost && hostConn && hostConn.open) hostConn.send({type:'color', playerIdx:myPlayerId, color:hex});
 }
 
 function setReady() {
@@ -701,13 +739,28 @@ document.addEventListener('keydown', e => {
       <button class="sbtn" id="btn-start" disabled>Czekam na graczy...</button>
     </div>
     <div class="lsec">
-      <button id="btn-local" onclick="setLocalMode()" style="padding:10px 24px;background:#555;color:#eee;border:none;border-radius:8px;cursor:pointer;font-size:.95em">👥 Gra lokalna (hot-seat)</button>
-      <p class="d" style="margin-top:4px;color:#666;font-size:.75em">Gracze na jednym urządzeniu, przełączanie tur.</p>
-      <div style="margin-top:8px"><label>Liczba graczy: <select id="player-count"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
-        <div id="player-names"></div>
-        <div id="test-mode-section" style="display:none;margin-top:8px;text-align:left"><label style="color:#aaa;font-size:.85em"><input type="checkbox" id="chk-test-mode"> 🧪 Tryb testowy: wybierz karty na rynek</label>
-          <div id="test-card-picker" style="display:none;max-height:200px;overflow-y:auto;border:1px solid #333;border-radius:8px;padding:8px;margin-top:4px;background:#1a1a2e"></div></div>
-        <button id="btn-start-local" onclick="document.getElementById('btn-start').click()" style="padding:12px 32px;background:#4ecdc4;color:#000;font-weight:bold;border-radius:10px;border:none;cursor:pointer;font-size:1.1em;margin-top:12px">🎮 Rozpocznij grę</button></div>
+      <h2 style="color:#b44dff;font-size:1.1em;margin-bottom:8px">👥 Gra lokalna (hot-seat)</h2>
+      <p class="d" style="color:#666;font-size:.75em;margin-bottom:12px">Gracze na jednym urządzeniu, przełączanie tur.</p>
+      <div style="display:flex;gap:16px;text-align:left">
+        <div style="flex:1">
+          <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:6px">Liczba graczy:</label>
+          <select id="player-count" style="width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:8px;font-size:.9em;margin-bottom:8px"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+          <div id="player-names"></div>
+          <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:6px;margin-top:8px">Sektory mapy:</label>
+          <select id="sector-select-local" style="width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:8px;font-size:.9em;margin-bottom:8px"><option value="auto">Automatycznie (wg graczy)</option><option value="center">Tylko Centrum</option><option value="center+left">Centrum + Lewy</option><option value="center+right">Centrum + Prawy</option><option value="all">Wszystkie 3</option></select>
+        </div>
+        <div style="flex:1">
+          <div class="fr"><button onclick="document.getElementById('btn-load-cards').click()">🃏 Wczytaj karty</button><button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button></div>
+          <button onclick="document.getElementById('btn-load-map').click()" style="width:100%;padding:6px;font-size:.8em;background:#1a1a2e;border:1px solid #444;border-radius:6px;color:#eee;cursor:pointer;margin-bottom:8px">📂 Wczytaj mapę</button>
+          <div id="deck-pick-section-local" style="display:none;margin-top:4px">
+            <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:4px">Talie do gry:</label>
+            <div id="deck-checkboxes-local" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:6px 0"></div>
+          </div>
+          <div id="test-mode-section" style="display:none;margin-top:8px"><label style="color:#aaa;font-size:.85em"><input type="checkbox" id="chk-test-mode"> 🧪 Tryb testowy: wybierz karty na rynek</label>
+            <div id="test-card-picker" style="display:none;max-height:200px;overflow-y:auto;border:1px solid #333;border-radius:8px;padding:8px;margin-top:4px;background:#1a1a2e"></div></div>
+        </div>
+      </div>
+      <button id="btn-start-local" onclick="startLocalGame()" style="padding:12px 32px;background:#555;color:#eee;font-weight:bold;border-radius:10px;border:none;cursor:pointer;font-size:1.1em;margin-top:16px;width:100%">👥 Gra lokalna - Rozpocznij Grę</button>
     </div>
     <div id="join-input" style="display:none"></div><div id="online-players" style="display:none"></div>
     </div>
@@ -750,8 +803,12 @@ function getImg(card) {
 // Tyrants of the Underdark - Map Data (1:1 from original board)
 // ============================================================
 
-const COLORS = ['#e94560','#4ecdc4','#ffe66d','#a8e6cf'];
-const COLOR_NAMES = ['Czerwony','Niebieski','Żółty','Zielony'];
+const ALL_COLORS = [
+  {hex:'#9b59b6',name:'Fioletowy'},{hex:'#e74c3c',name:'Czerwony'},{hex:'#e67e22',name:'Pomarańczowy'},{hex:'#3498db',name:'Niebieski'},
+  {hex:'#e91e8a',name:'Różowy'},{hex:'#2ecc71',name:'Zielony'},{hex:'#f1c40f',name:'Żółty'},{hex:'#1abc9c',name:'Turkusowy'}
+];
+let COLORS = ['#9b59b6','#e74c3c','#e67e22','#3498db'];
+let COLOR_NAMES = ['Fioletowy','Czerwony','Pomarańczowy','Niebieski'];
 
 // Coordinates: percentage-based (0-100) matching the board image layout
 // ⊗ in whiteSlots = pre-placed white (neutral) troop
@@ -3020,6 +3077,14 @@ function renderDeckPicker() {
     return `<label style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:#1a1a2e;border:1px solid #333;border-radius:8px;cursor:pointer;font-size:.85em;transition:border-color .15s"><input type="checkbox" class="deck-setup-chk" value="${d}" checked onchange="this.parentElement.style.borderColor=this.checked?'#b44dff':'#333'"> <span>${d}</span> <span style='color:#666;font-size:.8em'>(${cnt})</span></label>`;
   }).join('');
   document.querySelectorAll('.deck-setup-chk').forEach(c=>{c.parentElement.style.borderColor=c.checked?'#b44dff':'#333';});
+  // Also populate local deck picker
+  var lp = document.getElementById('deck-pick-section-local');
+  if (lp) { lp.style.display = 'block';
+    document.getElementById('deck-checkboxes-local').innerHTML = decks.map(d => {
+      const cnt2 = MARKET_POOL_DEF.filter(c => c.deck === d).reduce((s,c) => s + (c.copies||1), 0);
+      return `<label style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1a1a2e;border:1px solid #b44dff;border-radius:8px;cursor:pointer;font-size:.82em"><input type="checkbox" class="deck-local-chk" value="${d}" checked onchange="this.parentElement.style.borderColor=this.checked?'#b44dff':'#333'"> ${d} <span style='color:#666;font-size:.8em'>(${cnt2})</span></label>`;
+    }).join('');
+  }
 }
 
 document.getElementById('btn-random-2').addEventListener('click', () => {
@@ -3048,6 +3113,33 @@ document.getElementById('chk-test-mode')?.addEventListener('change', function() 
 
 // Deck selection
 let _playerNames = [];
+
+function startLocalGame() {
+  isOnline = false; isHost = false;
+  // Sync sector select from local to main
+  var ls = document.getElementById('sector-select-local');
+  if (ls) document.getElementById('sector-select').value = ls.value;
+  var inputs = document.getElementById('player-names').querySelectorAll('input');
+  _playerNames = Array.from(inputs).map(function(inp){return inp.value.trim() || 'Gracz ' + (parseInt(inp.dataset.idx)+1);});
+  var testMode = document.getElementById('chk-test-mode') && document.getElementById('chk-test-mode').checked;
+  var deckChks = document.querySelectorAll('.deck-local-chk');
+  if (deckChks.length === 0) deckChks = document.querySelectorAll('.deck-setup-chk');
+  if (deckChks.length > 0 && !testMode) {
+    var selectedDecks = Array.from(deckChks).filter(function(c){return c.checked;}).map(function(c){return c.value;});
+    if (selectedDecks.length === 0) { alert('Wybierz co najmniej 1 talię!'); return; }
+    var filtered = MARKET_POOL_DEF.filter(function(c){return !c.deck || selectedDecks.includes(c.deck);});
+    MARKET_POOL_DEF.length = 0;
+    filtered.forEach(function(c){MARKET_POOL_DEF.push(c);});
+  }
+  if (testMode) {
+    var checks = document.querySelectorAll('.test-card-chk');
+    var filtered2 = [];
+    checks.forEach(function(chk){if(chk.checked)filtered2.push(MARKET_POOL_DEF[parseInt(chk.dataset.idx)]);});
+    MARKET_POOL_DEF.length = 0;
+    filtered2.forEach(function(c){MARKET_POOL_DEF.push(c);});
+  }
+  startGameWithDecks([]);
+}
 
 document.getElementById('btn-start').addEventListener('click', () => {
   const inputs = document.getElementById('player-names').querySelectorAll('input');
@@ -3089,6 +3181,7 @@ function startGameWithDecks(selectedDecks) {
   const _secVal = document.getElementById('sector-select')?.value||'auto';
   const _customSec = _secVal==='auto'?null:_secVal==='center'?['center']:_secVal==='center+left'?['center','left']:_secVal==='center+right'?['center','right']:['center','left','right'];
   G = createGame(_playerNames, _customSec);
+  if (lobbyFirstPlayer > 0 && lobbyFirstPlayer < G.players.length) { G.currentPlayer = lobbyFirstPlayer; G.setupDeployOrder = []; for(var _fi=0;_fi<G.players.length;_fi++) G.setupDeployOrder.push((lobbyFirstPlayer+_fi)%G.players.length); G.setupDeployIdx = 0; }
   undoStack = []; actionLog = [];
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('deck-select-screen').style.display = 'none';
@@ -3592,16 +3685,11 @@ function updateOnlinePlayers() {
 function handleClientMessage(data) {
   if (data.type === 'lobby') {
     document.getElementById('lobby-room').style.display = 'block';
-    var tb = document.getElementById('lobby-table-body');
-    if (tb) {
-      var h = '';
-      data.players.forEach(function(p,i) {
-        h += '<tr><td><strong style="color:'+COLORS[i]+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
-        h += '<td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:'+COLORS[i]+';vertical-align:middle"></span></td>';
-        h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
-      });
-      tb.innerHTML = h;
+    if (data.firstPlayer !== undefined) lobbyFirstPlayer = data.firstPlayer;
+    if (data.players) {
+      data.players.forEach(function(p,i){ if(p.color){COLORS[i]=p.color;} lobbyPlayers[i]=lobbyPlayers[i]||{};lobbyPlayers[i].name=p.name;lobbyPlayers[i].ready=p.ready;lobbyPlayers[i].color=p.color; });
     }
+    renderLobbyStatus();
   }
   if (data.type === 'assignId') {
     myPlayerId = data.playerId;
@@ -3736,6 +3824,11 @@ function handleHostMessage(conn, data) {
     if (lp) lp.ready = true;
     updateLobby();
   }
+  if (data.type === 'color') {
+    var lp = lobbyPlayers[data.playerIdx];
+    if (lp) { lp.color = data.color; COLORS[data.playerIdx] = data.color; COLOR_NAMES[data.playerIdx] = (ALL_COLORS.find(function(c){return c.hex===data.color;})||{}).name||''; }
+    updateLobby();
+  }
   if (data.type === 'action') {
     // Execute locally using _local (unwrapped) to avoid infinite loop
     const fn = _local[data.name];
@@ -3745,13 +3838,14 @@ function handleHostMessage(conn, data) {
 
 
 // === LOBBY SYSTEM ===
-let lobbyPlayers = []; // [{name, ready, conn}]
+let lobbyPlayers = []; // [{name, ready, conn, color}]
+let lobbyFirstPlayer = 0;
 
 function updateLobby() {
   if (!isHost) return;
   const data = {
     type: 'lobby',
-    players: lobbyPlayers.map(p => ({name:p.name, ready:p.ready})),
+    players: lobbyPlayers.map(function(p,i){return {name:p.name, ready:p.ready, color:p.color||COLORS[i]||ALL_COLORS[i].hex};}), firstPlayer: lobbyFirstPlayer,
     settings: {
       decks: Array.from(document.querySelectorAll('.deck-setup-chk:checked')).map(c=>c.value),
       sectors: document.getElementById('sector-select')?.value || 'auto',
@@ -3767,8 +3861,18 @@ function renderLobbyStatus() {
   if (tb) {
     var h = '';
     lobbyPlayers.forEach(function(p,i) {
-      h += '<tr><td><strong style="color:'+COLORS[i]+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
-      h += '<td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:'+COLORS[i]+';vertical-align:middle"></span></td>';
+      var pc = (p.color || COLORS[i] || ALL_COLORS[i].hex);
+      var isFirst = (i === lobbyFirstPlayer);
+      h += '<tr><td>';
+      if (isFirst) h += '<span style="background:#ffd700;color:#000;padding:1px 6px;border-radius:10px;font-size:.75em;font-weight:bold;margin-right:4px">1st \u{1F451}</span>';
+      h += '<strong style="color:'+pc+'">'+p.name+'</strong>'+(i===0?' <span style="color:#888;font-size:.75em">(Host)</span>':'')+'</td>';
+      h += '<td><div style="display:flex;gap:4px;flex-wrap:wrap">';
+      ALL_COLORS.forEach(function(c) {
+        var taken = lobbyPlayers.some(function(lp,li){return li!==i && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===c.hex;});
+        var sel = pc === c.hex;
+        h += '<div onclick="pickLobbyColor('+i+',\''+c.hex+'\')" title="'+c.name+'" style="width:22px;height:22px;border-radius:50%;background:'+c.hex+';cursor:'+(taken?'default':'pointer')+';border:3px solid '+(sel?'#fff':'transparent')+';opacity:'+(taken&&!sel?'.25':'1')+';box-shadow:'+(sel?'0 0 6px rgba(255,255,255,.4)':'none')+'"></div>';
+      });
+      h += '</div></td>';
       h += '<td class="'+(p.ready?'sr':'sw')+'">'+(p.ready?'✅ Gotowy':'⏳ Oczekuje')+'</td></tr>';
     });
     tb.innerHTML = h;
@@ -3779,6 +3883,33 @@ function renderLobbyStatus() {
     btn.disabled = !allReady;
     btn.textContent = allReady ? 'Rozpocznij grę' : 'Czekam na graczy...';
   }
+}
+
+function updateFirstPlayerSelect() {
+  var sel = document.getElementById('first-player-select');
+  if (!sel) return;
+  sel.innerHTML = lobbyPlayers.map(function(p,i){ return '<option value="'+i+'"'+(i===lobbyFirstPlayer?' selected':'')+'>'+p.name+(i===0?' (Host)':'')+'</option>'; }).join('');
+}
+function setFirstPlayer(idx) {
+  lobbyFirstPlayer = idx;
+  if (isHost) updateLobby();
+  renderLobbyStatus();
+  updateFirstPlayerSelect();
+}
+function randomFirstPlayer() {
+  setFirstPlayer(Math.floor(Math.random() * lobbyPlayers.length));
+}
+
+function pickLobbyColor(playerIdx, hex) {
+  if (!isHost && playerIdx !== myPlayerId) return;
+  var taken = lobbyPlayers.some(function(lp,li){return li!==playerIdx && (lp.color||COLORS[li]||ALL_COLORS[li].hex)===hex;});
+  if (taken) return;
+  lobbyPlayers[playerIdx].color = hex;
+  COLORS[playerIdx] = hex;
+  COLOR_NAMES[playerIdx] = ALL_COLORS.find(function(c){return c.hex===hex;})?.name || '';
+  if (isHost) updateLobby();
+  renderLobbyStatus();
+  if (!isHost && hostConn && hostConn.open) hostConn.send({type:'color', playerIdx:myPlayerId, color:hex});
 }
 
 function setReady() {
