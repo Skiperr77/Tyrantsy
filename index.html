@@ -1192,6 +1192,11 @@ function playCard(cardId) {
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
+  if (!G.pending && card.focusAspect && card.focusEffects && card.focusEffects.length > 0) {
+    var aspect = card.focusAspect;
+    var hasMatch = p.played.some(function(c){return c.id !== card.id && c.aspect === aspect;}) || p.hand.some(function(c){return c.aspect === aspect;});
+    if (hasMatch) { logAction('<span style="color:'+p.color+'">'+p.name+'</span>: ⚡ Skupienie '+aspect+'!'); applyEffects(card.focusEffects); }
+  }
   render();
 }
 
@@ -1207,6 +1212,10 @@ function playAllCards() {
     playCardSound(card);
     logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
     applyEffects(card.effects);
+    if (!G.pending && card.focusAspect && card.focusEffects && card.focusEffects.length > 0) {
+      var hasMatch = p.played.some(function(c){return c.id !== card.id && c.aspect === card.focusAspect;}) || p.hand.some(function(c){return c.aspect === card.focusAspect;});
+      if (hasMatch) { logAction('<span style="color:'+p.color+'">'+p.name+'</span>: ⚡ Skupienie '+card.focusAspect+'!'); applyEffects(card.focusEffects); }
+    }
     if (G.pending) break; // stop if card requires interaction
   }
   render();
@@ -2656,8 +2665,8 @@ function cardInner(c) {
 
 function renderMarket(){
   const mc=document.getElementById('market-content');
-  let h=`<div class="card-sm" onclick="if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(HOUSE_GUARD)" onmouseleave="clearPreview()" style="${G.influence>=HOUSE_GUARD.cost?'border-color:#b44dff':''}">${cardInner(HOUSE_GUARD)}</div>`;
-  h+=`<div class="card-sm" onclick="if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(LOLTH_PRIESTESS)" onmouseleave="clearPreview()" style="${G.influence>=LOLTH_PRIESTESS.cost?'border-color:#b44dff':''}">${cardInner(LOLTH_PRIESTESS)}</div>`;
+  let h=`<div class="card-sm" onclick="if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(HOUSE_GUARD)" onmouseleave="clearPreview()" style="${G.influence>=HOUSE_GUARD.cost?'border-color:#b44dff':''}">${cardInner(HOUSE_GUARD)}</div>`;
+  h+=`<div class="card-sm" onclick="if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(LOLTH_PRIESTESS)" onmouseleave="clearPreview()" style="${G.influence>=LOLTH_PRIESTESS.cost?'border-color:#b44dff':''}">${cardInner(LOLTH_PRIESTESS)}</div>`;
   h+=`<div style="width:1px;background:#333;margin:0 4px;flex-shrink:0"></div>`;
   h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="if(!G.market[${i}]?._hidden)showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
   mc.innerHTML=h;
@@ -2674,10 +2683,15 @@ function renderPlayed(){
     let oc='';
     if(G.pending?.type==='promote')oc=`onclick="promoteCard('${c.id}')"`;
     if(G.pending?.type==='devour')oc=`onclick="devourCard('${c.id}')"`;
-    return`<div class="played-card-sm" ${oc} onmouseenter="showPreview(findCardData('${c.id}','played'))" onmouseleave="clearPreview()" style="${G.pending?.type==='promote'||G.pending?.type==='devour'?'border-color:#ffd700':''}"
-      onmouseenter="showPreview(G.players[G.currentPlayer].played.find(_c=>_c.id==='${c.id}'))" onmouseleave="clearPreview()">
+    return`<div class="played-card-sm" ${oc} style="${G.pending?.type==='promote'||G.pending?.type==='devour'?'border-color:#ffd700':''}">
       ${getImg(c) ? `<img src="${getImg(c)}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;pointer-events:none">` : `<span class="cs-name">${c.name}</span><span class="cs-desc">${c.desc}</span>`}</div>`;
   }).join('');
+  // Attach hover events after render
+  el.querySelectorAll('.played-card-sm').forEach((div,i)=>{
+    const card=p.played[i];
+    div.addEventListener('mouseenter',()=>showPreview(card));
+    div.addEventListener('mouseleave',()=>clearPreview());
+  });
 }
 
 function renderInfo(){
@@ -3368,7 +3382,8 @@ function toggleMute() { soundMuted = !soundMuted; }
 
 function animateBuy(el, idx) {
   const card = G.market[idx];
-  if (!card || G.influence < card.cost || G.pending) return;
+  if (!card || G.pending) return;
+  if ((isOnline && G.currentPlayer!==myPlayerId) || G.influence < card.cost) { el.classList.add('card-shake'); setTimeout(()=>el.classList.remove('card-shake'),400); return; }
   el.classList.add('fly-out');
   playSound('coin');
   setTimeout(() => { buyCard('market', idx); }, 250);
