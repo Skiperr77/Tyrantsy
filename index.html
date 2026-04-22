@@ -289,14 +289,18 @@ function setLocalMode() {
 function hostGame() {
   isHost = true; isOnline = true;
   peer = new Peer({
-    debug: 0,
+    debug: 1,
     config: {
       iceServers: [
         {urls:'stun:stun.l.google.com:19302'},
         {urls:'stun:stun1.l.google.com:19302'},
-        {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
-        {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-        {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+        {urls:'stun:stun2.l.google.com:19302'},
+        {urls:'stun:stun3.l.google.com:19302'},
+        {urls:'stun:stun4.l.google.com:19302'},
+        {urls:'turn:a.relay.metered.ca:80',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:443',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'}
       ]
     }
   });
@@ -343,14 +347,18 @@ function connectToHost() {
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer({
-    debug: 0,
+    debug: 1,
     config: {
       iceServers: [
         {urls:'stun:stun.l.google.com:19302'},
         {urls:'stun:stun1.l.google.com:19302'},
-        {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
-        {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-        {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+        {urls:'stun:stun2.l.google.com:19302'},
+        {urls:'stun:stun3.l.google.com:19302'},
+        {urls:'stun:stun4.l.google.com:19302'},
+        {urls:'turn:a.relay.metered.ca:80',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:443',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'}
       ]
     }
   });
@@ -3917,14 +3925,18 @@ function setLocalMode() {
 function hostGame() {
   isHost = true; isOnline = true;
   peer = new Peer({
-    debug: 0,
+    debug: 1,
     config: {
       iceServers: [
         {urls:'stun:stun.l.google.com:19302'},
         {urls:'stun:stun1.l.google.com:19302'},
-        {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
-        {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-        {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+        {urls:'stun:stun2.l.google.com:19302'},
+        {urls:'stun:stun3.l.google.com:19302'},
+        {urls:'stun:stun4.l.google.com:19302'},
+        {urls:'turn:a.relay.metered.ca:80',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:443',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'}
       ]
     }
   });
@@ -3971,14 +3983,18 @@ function connectToHost() {
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer({
-    debug: 0,
+    debug: 1,
     config: {
       iceServers: [
         {urls:'stun:stun.l.google.com:19302'},
         {urls:'stun:stun1.l.google.com:19302'},
-        {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
-        {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-        {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+        {urls:'stun:stun2.l.google.com:19302'},
+        {urls:'stun:stun3.l.google.com:19302'},
+        {urls:'stun:stun4.l.google.com:19302'},
+        {urls:'turn:a.relay.metered.ca:80',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:443',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'},
+        {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'e7589865ba3b0a22e3514ea8',credential:'1bYJMfGKaDuiaBkn'}
       ]
     }
   });
