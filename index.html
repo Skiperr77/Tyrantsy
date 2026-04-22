@@ -289,7 +289,10 @@ function setLocalMode() {
 function hostGame() {
   isHost = true; isOnline = true;
   peer = new Peer({
-    debug: 1,
+    debug: 2,
+    host: '0.peerjs.com',
+    port: 443,
+    secure: true,
     config: {
       iceServers: [
         {urls:'stun:stun.l.google.com:19302'},
@@ -347,7 +350,10 @@ function connectToHost() {
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer({
-    debug: 1,
+    debug: 2,
+    host: '0.peerjs.com',
+    port: 443,
+    secure: true,
     config: {
       iceServers: [
         {urls:'stun:stun.l.google.com:19302'},
@@ -3925,7 +3931,10 @@ function setLocalMode() {
 function hostGame() {
   isHost = true; isOnline = true;
   peer = new Peer({
-    debug: 1,
+    debug: 2,
+    host: '0.peerjs.com',
+    port: 443,
+    secure: true,
     config: {
       iceServers: [
         {urls:'stun:stun.l.google.com:19302'},
@@ -3983,7 +3992,10 @@ function connectToHost() {
   const code = document.getElementById('room-code-input').value.trim();
   if (!code) return;
   peer = new Peer({
-    debug: 1,
+    debug: 2,
+    host: '0.peerjs.com',
+    port: 443,
+    secure: true,
     config: {
       iceServers: [
         {urls:'stun:stun.l.google.com:19302'},
