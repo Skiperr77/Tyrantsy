@@ -7,7 +7,7 @@
 <title>Tyrants v20</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; }
+body { font-family:'Segoe UI',sans-serif; background:#0d0d1a; color:#eee; height:100vh; overflow:hidden; user-select:none; -webkit-user-select:none; }
 
 /* Screens */
 #setup-screen{position:fixed;inset:0;background:#0d0d1a;display:flex;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:20px 0}
@@ -37,6 +37,48 @@ button:hover{background:#9333ea}button:disabled{opacity:.4}
 #player-names{display:flex;flex-direction:column;gap:8px;margin:8px 0}
 #player-names input{padding:8px;border-radius:6px;border:none;width:200px;background:#1a1a2e;color:#eee}
 
+
+/* UI zoom */
+.ui-zoomed #played-panel { transform:scale(1.6) !important;transform-origin:top center; }
+.ui-zoomed #action-prompt { transform:translateX(-50%) scale(1.6) !important;transform-origin:top center; }
+.ui-zoomed #log-window { transform:scale(1.4);transform-origin:bottom right; }
+
+.ui-zoomed #bottom-bar { height:200px; }
+
+.ui-zoomed .card-hand { width:100px;height:140px;font-size:.8em; }
+.ui-zoomed .card-sm { width:90px;height:125px;font-size:.75em; }
+.ui-zoomed .played-card-sm { width:78px;height:108px;font-size:.65em; }
+.ui-zoomed #hand-section { flex:0.79; }
+.ui-zoomed #hand-section-header { font-size:.85em; }
+.ui-zoomed #control-panel { transform:scale(1.5);transform-origin:top center; }
+.ui-zoomed #focus-popup { transform:scale(1.5) !important;transform-origin:top center; }
+.ui-zoomed [id^="pile-panel-"] { transform:scale(1.4);transform-origin:top center; }
+.ui-zoomed #army-panel { transform:scale(1.4);transform-origin:top right; }
+.ui-zoomed #market-header { font-size:.85em; }
+.ui-zoomed #market-header .section-toggle { font-size:1em; }
+.ui-zoomed #hand-section { flex:0.79; }
+.ui-zoomed #hand-section-header { font-size:.85em; }
+
+/* Custom cursors */
+:root {
+  --cursor-default: url("data:image/x-icon;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/9DZ3P/M2Nr/aXV3/wAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/wAAAP9cZGT/5+7x/4aPkv8AAAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/xs7O/5CYmP9ka27/Jywv/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8AAAD/AAAA/wAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////4A///8AP//+AD//5gA//4AAP/+AAD/+AAB/8AAA/+AAAP/AAAD/wcAB/4HAAf+HwAH//8AD//+AA///gAP//wAD//8AA//+AAP//AAD//wAA//4AAf/+AAP//BxH//g////4P///8H///8D////B////w////8="), auto;
+  --cursor-pointer: url("data:image/x-icon;base64,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"), pointer;
+  --cursor-move: url("data:image/x-icon;base64,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bf/t+Pz/AAAA////////////////////////////AAAA/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/homO/6mxuP+5x9P/p7jF/0VVZf8/T1z/wdHe/5Gfq/9GVV7/fYqS/1FcZP+6xMv/cHt//wAAAP8AAAD/AAAA/wAAAP//////AAAA/wAAAP8AAAD/AAAA/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEhNUP/V2d7/2eHo/9/r9f8XJzP/doSQ/87c6P+ptcH/KDQ+/77J0f9aZmz/dX+G/+ny9v8AAAD//////wAAAP8AAAAAAAAA//////8AAAD/AAAAAAAAAP//////AAAA/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAuNTj/VF1g/9Xe4v+8xs3/Ym11/zRASv+OmqT/7/z//6izu/92goj/3efu/1BZXf9TWl3/AAAA////////////AAAA/wAAAP8AAAD//////wAAAP8AAAD/AAAA////////////AAAA/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAENMT/+3w8X/g46S/wAAAP8qNDv/O0VM/wAAAP9aZGv/VFxj/zI7P/86QEX/UFld/wAAAP//////////////////////////////////////////////////////////////////////AAAA/wAAAAAAAAAAAAAAAAAAAAAAAAD/rrq8//P///8oNDj/AAAA/wAAAAAAAAAAAAAAAAAAAP8AAAD/AAAA/wAAAAAAAAD/AAAA/wAAAP///////////wAAAP8AAAD/AAAA//////8AAAD/AAAA/wAAAP///////////wAAAP8AAAAAAAAAAAAAAAAAAAAAQ0xP/yEtL//S3+H/pLGz/wAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////AAAA/wAAAAAAAAD//////wAAAP8AAAAAAAAA//////8AAAD/AAAAAAAAAAAAAAAAAAAAAAAAAABkbXD/xdHT/3+Mjv86R0n/AAAA/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8AAAD/AAAA/wAAAP//////AAAA/wAAAP8AAAD/AAAA/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/9DZ3P/M2Nr/aXV3/wAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////////////////wAAAP8AAAAAAAAAAAAAAAAAAAAAAAAA/wAAAP9cZGT/5+7x/4aPkv8AAAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////////8AAAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/xs7O/5CYmP9ka27/Jywv/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////AAAA/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8AAAD/AAAA/wAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////4A///8AP//+AD//5gA//4AAP/+AAD/+AAB/8AAA/+AAAP/AAAD/wcAB/4HAAf+HwAH//8AD//+AA///gAN//wACP/8AAB/+AAAP/AAAB/wAAiP4AAAB+AAAAPBxAAHg/+Ij4P/wB8H/+A8D//wfB//+Pw///38="), move;
+}
+body, body * { cursor: var(--cursor-default) !important; }
+button, a, [onclick], [style*='cursor:pointer'], .section-toggle, .card-hand, .card-sm, .played-card-sm, .map-slot, .map-area, .map-spy, .color-opt, select, input { cursor: var(--cursor-pointer) !important; }
+#played-panel, [style*='cursor:move'], .lrm { cursor: var(--cursor-move) !important; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:rgba(20,20,40,0.5); border-radius:4px; }
+::-webkit-scrollbar-thumb { background:#b44dff; border-radius:4px; }
+::-webkit-scrollbar-thumb:hover { background:#9333ea; }
+* { scrollbar-width:thin; scrollbar-color:#b44dff rgba(20,20,40,0.5); }
+
+/* Individual panel zoom (right-click) */
+.panel-zoomed-single { transform:scale(2) !important; z-index:600 !important; }
+#action-prompt.panel-zoomed-single { transform:translateX(-50%) scale(2) !important; transform-origin:top center; }
 /* Top bar */
 #top-bar {
   display:flex; align-items:center; gap:12px; padding:5px 14px;
@@ -65,7 +107,7 @@ button:hover{background:#9333ea}button:disabled{opacity:.4}
 
 /* Action prompt - floating */
 #action-prompt {
-  position:absolute; top:8px; left:50%; transform:translateX(-50%);
+  position:absolute; top:50px; left:50%; transform:translateX(-50%);
   background:rgba(42,26,78,0.9); border:2px solid #ffd700; border-radius:8px;
   padding:6px 16px; text-align:center; font-weight:bold; color:#ffd700; font-size:.85em;
   z-index:30; pointer-events:auto;
@@ -95,7 +137,7 @@ button:hover{background:#9333ea}button:disabled{opacity:.4}
   position:absolute; bottom:8px; right:8px; width:240px; max-height:160px;
   background:rgba(10,10,24,0.9); border:1px solid #333; border-radius:8px;
   overflow-y:auto; font-size:.72em; color:#aaa; padding:6px 8px; z-index:30;
-  line-height:1.4;
+  line-height:1.4; cursor:move;
 }
 #log-window .log-entry { border-bottom:1px solid #1a1a2e; padding:2px 0; }
 #log-window.minimized { max-height:32px; overflow:hidden; }
@@ -109,18 +151,17 @@ button:hover{background:#9333ea}button:disabled{opacity:.4}
 
 /* Hand section (left half) */
 #hand-section { flex:1; display:flex; flex-direction:column; min-width:0; }
-#hand-section-header { display:flex; align-items:center; gap:8px; padding:2px 10px; font-size:.75em; color:#888; }
-#hand-fan { display:flex; align-items:flex-end; padding:0 12px 6px; flex:1; overflow-x:auto; min-width:0; }
+#hand-section-header { display:flex; align-items:center; gap:8px; padding:0 10px; font-size:.75em; color:#888; line-height:1.4; margin:0; }
+#hand-fan { display:flex; align-items:flex-end; padding:0 8px 6px; flex:1; overflow-x:auto; min-width:0; }
 
 /* Market section (right half) */
 #market-section { flex:1; display:flex; flex-direction:column; border-left:1px solid #333; min-width:0; position:relative; }
-#market-header { display:flex; align-items:center; gap:6px; padding:2px 10px; font-size:.75em; color:#888; }
-.section-toggle { cursor:pointer; color:#b44dff; font-size:.85em; user-select:none; }
+#market-header { display:flex; align-items:center; gap:6px; padding:0 10px; font-size:.75em; color:#888; line-height:1.4; margin:0; }
+.section-toggle { cursor:pointer; color:#b44dff; font-size:1em; user-select:none; }
 .section-toggle:hover { color:#fff; }
-#market-content { display:flex; align-items:flex-end; padding:0 8px 6px; flex:1; gap:4px; overflow-x:auto; }
+#market-content { display:flex; align-items:flex-end; padding:0 8px 4px; flex:1; gap:4px; overflow-x:auto; min-height:0; }
 #market-content.collapsed { display:none; }
-#market-collapsed-msg { display:none; align-items:center; justify-content:center; flex:1; color:#444; font-size:.85em; cursor:pointer; }
-#market-collapsed-msg.show { display:flex; }
+#market-collapsed-msg { display:none; }
 
 /* Played area - floating draggable panel on top center */
 #played-strip {
@@ -161,8 +202,8 @@ button:hover{background:#9333ea}button:disabled{opacity:.4}
   transition:all .15s; flex-shrink:0; overflow:hidden;
 }
 
-.card-sm:hover { border-color:#b44dff; transform:translateY(-4px); z-index:10; }
-.card-sm, .card-hand, #market-content, #hand-fan { user-select:none; -webkit-user-select:none; }
+.card-sm:hover { transform:translateY(-4px); z-index:10; }
+.card-sm, .card-hand, #market-content, #hand-fan, #market-section, #hand-section, #bottom-bar { user-select:none; -webkit-user-select:none; }
 .card-sm .cs-name { font-weight:bold; color:#ffd700; font-size:.85em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .card-sm .cs-cost { color:#b44dff; font-size:.8em; }
 .card-sm .cs-desc { color:#888; font-size:.75em; flex:1; overflow:hidden; }
@@ -581,9 +622,31 @@ let _turnStartState = null;
 let _canResetTurn = true;
 
 function saveTurnStart() {
+  G._usedFocusIds = [];
   _turnStartState = JSON.stringify(G);
   _canResetTurn = true;
   updateResetButton();
+  // Play local "your turn" sound
+  if (!isOnline || G.currentPlayer === myPlayerId) playLocalSound('myturn');
+  // Focus check happens when player is ready (after transition screen or immediately in online)
+  if (isOnline) checkHandFocus();
+}
+
+function checkHandFocus() {
+  var p = cp();
+  if (!G._usedFocusIds) G._usedFocusIds = [];
+  G._pendingFocus = [];
+  var focusCards = p.hand.filter(function(c) { return c.focusAspect && c.focusEffects && c.focusEffects.length > 0; });
+  focusCards.forEach(function(card) {
+    var used = G._usedFocusIds.indexOf(card.id) >= 0;
+    var matching = p.hand.filter(function(c) { return c.id !== card.id && c.aspect === card.focusAspect; });
+    if (matching.length > 0) {
+      G._pendingFocus.push({card: card, aspect: card.focusAspect, count: matching.length, effects: card.focusEffects, used: used});
+    }
+  });
+  if (G._pendingFocus.length > 0) {
+    showFocusPendingPopup();
+  }
 }
 
 function resetTurn() {
@@ -642,35 +705,43 @@ document.addEventListener('keydown', e => {
       <span id="res-influence">💎 0</span>
       <span id="res-tokens">🏆 0</span>
     </div>
-    <button onclick="toggleStats()" style="padding:4px 14px;font-size:.85em;background:#1a1a2e;border:1px solid #555">📊</button> <button id="btn-reset-turn" style="padding:4px 14px;font-size:.85em;background:#e94560" onclick="resetTurn()">↩ Reset tury</button> <button id="btn-end-turn" style="padding:4px 14px;font-size:.85em">Zakończ turę</button>
+    <button onclick="toggleStats()" style="padding:4px 14px;font-size:.85em;background:#1a1a2e;border:1px solid #555">📊</button> <button id="btn-zoom" onclick="toggleUIZoom()" style="padding:4px 14px;font-size:.85em;background:#1a1a2e;border:1px solid #555">🔍 +</button> <button id="btn-reset-turn" style="padding:4px 14px;font-size:.85em;background:#e94560" onclick="resetTurn()">↩ Reset tury</button> <button id="btn-end-turn" style="padding:4px 14px;font-size:.85em">Zakończ turę</button>
   </header>
 
   <div id="game-area">
     <div id="map-section">
       <div id="board"></div>
       <div id="board-legend"></div>
-      <div id="action-prompt" class="hidden"></div>
+      <div id="action-prompt" class="hidden" data-zoomable oncontextmenu="event.preventDefault();togglePanelZoom(this)" onmousedown="if(!event.target.closest('button'))startPanelDrag(event,'action-prompt')" style="cursor:move"></div>
       <div id="card-preview"></div>
-      <div id="played-panel">
+      <div id="played-panel" >
         <div id="played-panel-header">Teraz gra: <span class="player-name" id="played-player-name"></span></div>
         <div id="played-panel-cards"></div>
       </div>
-      <div id="log-window"></div>
+      <div id="log-window" onmousedown="if(!event.target.closest('#log-toggle'))startPanelDrag(event,'log-window')"></div>
     </div>
 
     <div id="bottom-bar">
       <div id="hand-section">
-        <div id="hand-section-header">🃏 Ręka (<span id="hand-count">0</span>) | Talia: <span id="deck-count">0</span> | <span onclick="showPile('discard')" style="cursor:pointer;text-decoration:underline">Odrzucone: <span id="discard-count">0</span></span> | <span onclick="showPile('inner')" style="cursor:pointer;text-decoration:underline">Awanse: <span id="inner-count">0</span></span> | <span onclick="showTrophyPile()" style="cursor:pointer;text-decoration:underline">Trofea: <span id="trophy-count">0</span></span> | <span onclick="showControlPanel()" style="cursor:pointer;text-decoration:underline">Miasta: <span id="cities-count">0</span></span> | <span onclick="showArmyPanel()" style="cursor:pointer;text-decoration:underline">Oddziały: <span id="troops-count">0</span> | Szpiedzy: <span id="spies-count">0</span></span> <button id="btn-play-all" style="margin-left:auto;padding:2px 10px;font-size:.75em" onclick="playAllCards()">▶ Zagraj wszystkie</button></div>
+        <div id="hand-section-header" style="display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;padding:2px 10px;font-size:.75em;color:#888">
+          <span>🃏 Ręka: <b id="hand-count">0</b></span>
+          <span>Talia: <b id="deck-count">0</b></span>
+          <span onclick="showPile('discard')" style="cursor:pointer;text-decoration:underline">Odrzucone: <b id="discard-count">0</b></span>
+          <span onclick="showPile('inner')" style="cursor:pointer;text-decoration:underline">Awanse: <b id="inner-count">0</b></span>
+          <span onclick="showTrophyPile()" style="cursor:pointer;text-decoration:underline">Trofea: <b id="trophy-count">0</b></span>
+          <span onclick="showControlPanel()" style="cursor:pointer;text-decoration:underline">Miasta: <b id="cities-count">0</b></span>
+          <span onclick="showArmyPanel()" style="cursor:pointer;text-decoration:underline">Oddziały: <b id="troops-count">0</b></span>
+          <span onclick="showArmyPanel()" style="cursor:pointer;text-decoration:underline">Szpiedzy: <b id="spies-count">0</b></span>
+          <button id="btn-play-all" style="margin-left:auto;padding:2px 10px;font-size:1em" onclick="playAllCards()">▶ Zagraj wszystkie</button>
+        </div>
         <div id="hand-fan"></div>
       </div>
       <div id="market-section">
         <div id="market-header">
           <span class="section-toggle" onclick="toggleMarket()">🏪 Rynek (<span id="market-deck-count">0</span>)</span>
-          <span style="font-size:.7em;color:#555">kliknij aby zwinąć/rozwinąć</span>
-          <span onclick="showPile('devoured')" style="cursor:pointer;text-decoration:underline;font-size:.7em;color:#888;margin-left:auto">🪦 Pożarte: <span id="devoured-count">0</span></span>
+          <span onclick="showPile('devoured')" style="cursor:pointer;text-decoration:underline;font-size:1em;color:#888;margin-left:auto">🪦 Pożarte: <span id="devoured-count">0</span></span>
         </div>
         <div id="market-content"></div>
-        <div id="market-collapsed-msg" onclick="toggleMarket()">🏪 Kliknij aby rozwinąć rynek</div>
       </div>
     </div>
   </div>
@@ -682,7 +753,7 @@ document.addEventListener('keydown', e => {
       <button onclick="document.getElementById('stats-overlay').style.display='none'" style="margin-top:10px">Zamknij</button>
     </div>
   </div>
-  <div id="control-panel" style="display:none;position:fixed;top:100px;left:50%;transform:translateX(-50%);background:rgba(15,15,34,0.8);backdrop-filter:blur(6px);border:1px solid rgba(180,77,255,0.4);border-radius:12px;padding:12px 16px;z-index:150;min-width:280px;cursor:move;user-select:none" onmousedown="startPanelDrag(event,'control-panel')">
+  <div id="control-panel" data-zoomable oncontextmenu="event.preventDefault();togglePanelZoom(this)" style="display:none;position:fixed;top:100px;left:50%;transform:translateX(-50%);background:rgba(15,15,34,0.8);backdrop-filter:blur(6px);border:1px solid rgba(180,77,255,0.4);border-radius:12px;padding:12px 16px;z-index:150;min-width:280px;cursor:move;user-select:none" onmousedown="startPanelDrag(event,'control-panel')">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <span style="color:#b44dff;font-weight:bold;font-size:.9em">🏰 Kontrola miast</span>
       <span onclick="document.getElementById('control-panel').style.display='none'" style="cursor:pointer;color:#888;font-size:1.2em">✕</span>
@@ -706,7 +777,7 @@ document.addEventListener('keydown', e => {
         <div id="online-status" style="font-size:.8em;color:#888;margin:6px 0"></div>
         <div class="fr">
           <button id="btn-load-cards">🃏 Wczytaj karty</button>
-          <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
+          <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;if(window.SOUNDS&&window.SOUNDS[c]!==undefined){window.SOUNDS[c]=a;}}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
         </div>
         <div id="map-status" style="font-size:.8em;color:#888;margin:4px 0">Domyślna mapa i karty</div>
         <button id="btn-load-map" style="width:100%;padding:6px;font-size:.8em;background:#1a1a2e;border:1px solid #444;border-radius:6px;color:#eee;cursor:pointer;margin-bottom:8px">📂 Wczytaj mapę</button>
@@ -728,7 +799,7 @@ document.addEventListener('keydown', e => {
         <button class="pb" onclick="joinGame();connectToHost()">Połącz</button>
         <div class="fr" style="margin-top:12px">
           <button onclick="document.getElementById('btn-load-cards').click()">🃏 Wczytaj karty</button>
-          <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
+          <button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;if(window.SOUNDS&&window.SOUNDS[c]!==undefined){window.SOUNDS[c]=a;}}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button>
         </div>
         <p class="d" style="margin-top:8px">Wczytaj te same pliki kart i dźwięków co host.</p>
       </div>
@@ -750,7 +821,7 @@ document.addEventListener('keydown', e => {
           <select id="sector-select-local" style="width:100%;padding:8px;background:#1a1a2e;color:#eee;border:1px solid #444;border-radius:8px;font-size:.9em;margin-bottom:8px"><option value="auto">Automatycznie (wg graczy)</option><option value="center">Tylko Centrum</option><option value="center+left">Centrum + Lewy</option><option value="center+right">Centrum + Prawy</option><option value="all">Wszystkie 3</option></select>
         </div>
         <div style="flex:1">
-          <div class="fr"><button onclick="document.getElementById('btn-load-cards').click()">🃏 Wczytaj karty</button><button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button></div>
+          <div class="fr"><button onclick="document.getElementById('btn-load-cards').click()">🃏 Wczytaj karty</button><button onclick="var inp=document.createElement('input');inp.type='file';inp.accept='.wav,.mp3,.ogg,.flac';inp.multiple=true;inp.onchange=function(){var ld=0,tt=inp.files.length;Array.from(inp.files).forEach(function(f){var c=f.name.split('.')[0],r=new FileReader();r.onload=function(){var a=new Audio(r.result);if(c.toLowerCase()==='menu'){if(window.lobbyMusic)window.lobbyMusic.pause();window.lobbyMusic=a;a.loop=true;a.volume=0.3;a.play().catch(function(){});}else{window.CARD_SOUNDS[c]=a;if(window.SOUNDS&&window.SOUNDS[c]!==undefined){window.SOUNDS[c]=a;}}ld++;document.getElementById('map-status').textContent='🔊 '+ld+'/'+tt;document.getElementById('map-status').style.color='#4ecdc4';};r.readAsDataURL(f);});};inp.click();">🔊 Dźwięki</button></div>
           <button onclick="document.getElementById('btn-load-map').click()" style="width:100%;padding:6px;font-size:.8em;background:#1a1a2e;border:1px solid #444;border-radius:6px;color:#eee;cursor:pointer;margin-bottom:8px">📂 Wczytaj mapę</button>
           <div id="deck-pick-section-local" style="display:none;margin-top:4px">
             <label style="font-size:.85em;color:#aaa;display:block;margin-bottom:4px">Talie do gry:</label>
@@ -1032,8 +1103,121 @@ function drawCards(player, n) {
       player.deck = shuffle([...player.discard]);
       player.discard = [];
     }
-    player.hand.push(player.deck.pop());
+    var drawn = player.deck.pop();
+    if (G && G._focusDrawing) drawn._focusHidden = true;
+    player.hand.push(drawn);
   }
+}
+
+function checkFocus(player, card) {
+  var aspect = card.focusAspect;
+  var matching = player.hand.filter(function(c) { return c.id !== card.id && c.aspect === aspect; });
+  if (matching.length > 0) {
+    if (!G._pendingFocus) G._pendingFocus = [];
+    G._pendingFocus.push({card: card, aspect: aspect, count: matching.length, effects: card.focusEffects});
+  }
+}
+
+var _focusPopupPos = null;
+function showFocusPendingPopup() {
+  if (!G._pendingFocus || G._pendingFocus.length === 0) return;
+  var old = document.getElementById('focus-popup');
+  if (old) { _focusPopupPos = {top: old.style.top, left: old.style.left, transform: old.style.transform}; old.remove(); }
+  var box = document.createElement('div');
+  box.id = 'focus-popup';
+  box.setAttribute('data-zoomable','');
+  box.oncontextmenu = function(e){e.preventDefault();closeFocusPopup();};
+  box.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(30,20,60,0.95);backdrop-filter:blur(6px);border:2px solid #ffd700;border-radius:14px;padding:16px 24px;max-width:420px;width:90%;color:#eee;font-size:.95em;z-index:500;cursor:move;user-select:none;box-shadow:0 0 30px rgba(255,215,0,0.3)';
+  var h = '<h2 style="color:#ffd700;margin:0 0 12px;text-align:center">\u26a1 Skupienie</h2>';
+  h += '<p style="color:#aaa;font-size:.8em;text-align:center;margin-bottom:12px">Dobra\u0142e\u015b karty ze Skupieniem i masz pasuj\u0105ce aspekty w r\u0119ce!</p>';
+  G._pendingFocus.forEach(function(f, idx) {
+    var boxStyle = f.used ? 'background:rgba(100,100,100,0.1);border:1px solid #333;border-radius:8px;padding:10px 14px;margin-bottom:8px;opacity:0.5' : 'background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.3);border-radius:8px;padding:10px 14px;margin-bottom:8px';
+    h += '<div style="'+boxStyle+'" onmouseenter="if(G._pendingFocus&&G._pendingFocus['+idx+'])showPreview(G._pendingFocus['+idx+'].card)" onmouseleave="clearPreview()">';
+    h += '<div style="color:#ffd700;font-weight:bold;font-size:1em">'+f.card.name+'</div>';
+    h += '<div style="color:#aaa;font-size:.8em;margin:4px 0">Aspekt: <b style="color:#b44dff">'+f.aspect+'</b> \u2014 '+f.count+' pasuj\u0105cych kart w r\u0119ce</div>';
+    h += '<div style="color:#ccc;font-size:.85em;margin:4px 0">Bonus: ';
+    if (f.effects) {
+      h += f.effects.map(function(e) {
+        if (e.type==='strength') return '<span style="color:#e94560">+'+e.value+' \u2694\ufe0f Si\u0142a</span>';
+        if (e.type==='influence') return '<span style="color:#b44dff">+'+e.value+' 💎 Wp\u0142yw</span>';
+        if (e.type==='draw') return '<span style="color:#4ecdc4">Dobierz '+e.value+' kart\u0119</span>';
+        if (e.type==='deploy') return '<span style="color:#4ecdc4">Wy\u015blij '+e.value+' oddzia\u0142\u00f3w</span>';
+        if (e.type==='place_spy') return '<span style="color:#4ecdc4">Umie\u015b\u0107 szpiega</span>';
+        if (e.type==='promote_end_of_turn') return '<span style="color:#4ecdc4">Awansuj kart\u0119 na ko\u0144cu tury</span>';
+        return '<span style="color:#888">'+e.type+'</span>';
+      }).join(', ');
+    }
+    h += '</div>';
+    if (f.used) {
+      h += '<div style="margin-top:6px;padding:6px 16px;background:#333;color:#888;border-radius:6px;font-size:.85em;text-align:center">\u2705 Wykorzystano</div>';
+    } else {
+      h += '<button onclick="activateFocus('+idx+')" style="margin-top:6px;padding:6px 16px;background:#ffd700;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:.9em">\u26a1 Aktywuj bonus</button>';
+    }
+    h += '</div>';
+  });
+  var rb = document.getElementById('focus-reopen-btn'); if(rb) rb.remove();
+  h += '<div style="display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap">';
+  if (G._pendingFocus.length > 0) {
+    h += '<button onclick="closeFocusPopup()" style="padding:6px 14px;background:#555;color:#eee;border:none;border-radius:6px;cursor:pointer;font-size:.85em">Ukryj</button>';
+  } else {
+    h += '<button onclick="closeFocusPopup()" style="padding:8px 20px;background:#4ecdc4;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:bold">\u2705 Gotowe</button>';
+  }
+  h += '</div>';
+  box.innerHTML = h;
+  document.body.appendChild(box);
+  // Restore previous position if any
+  if (_focusPopupPos) { box.style.top = _focusPopupPos.top; box.style.left = _focusPopupPos.left; box.style.transform = _focusPopupPos.transform || 'none'; }
+  // Make draggable
+  var _fd={dragging:false,ox:0,oy:0};
+  box.addEventListener('mousedown',function(e){
+    if(e.target.tagName==='BUTTON')return;
+    _fd.dragging=true;_fd.ox=e.clientX-box.offsetLeft;_fd.oy=e.clientY-box.offsetTop;
+    function mv(e2){if(!_fd.dragging)return;box.style.left=(e2.clientX-_fd.ox)+'px';box.style.top=(e2.clientY-_fd.oy)+'px';box.style.transform='none';}
+    function up(){_fd.dragging=false;document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);}
+    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+  });
+}
+
+function showFocusReopenButton() {
+  var btn = document.getElementById('focus-reopen-btn');
+  if (btn) btn.remove();
+  if (!G._pendingFocus || G._pendingFocus.length === 0) return;
+  btn = document.createElement('button');
+  btn.id = 'focus-reopen-btn';
+  btn.style.cssText = 'position:fixed;bottom:200px;left:10px;background:#ffd700;color:#000;border:none;border-radius:8px;padding:6px 12px;font-size:.85em;font-weight:bold;cursor:pointer;z-index:400;box-shadow:0 0 10px rgba(255,215,0,0.5)';
+  btn.textContent = '\u26a1 Skupienie ('+G._pendingFocus.length+')';
+  btn.onclick = function() { showFocusPendingPopup(); btn.remove(); };
+  document.body.appendChild(btn);
+}
+
+function activateFocus(idx) {
+  if (!G._pendingFocus || !G._pendingFocus[idx]) return;
+  var f = G._pendingFocus[idx];
+  if (f.used) return;
+  if (!G._usedFocusIds) G._usedFocusIds = [];
+  G._usedFocusIds.push(f.card.id);
+  f.used = true;
+  logAction('<span style="color:'+cp().color+'">'+cp().name+'</span>: \u26a1 <b>Skupienie '+f.aspect+'!</b> ('+f.card.name+')');
+  G._focusDrawing = true;
+  applyEffects(f.effects);
+  G._focusDrawing = false;
+  // Don't re-check focus yet - wait for card reveal
+  showFocusPendingPopup();
+  render();
+}
+
+function closeFocusAll() {
+  var fp = document.getElementById('focus-popup'); if(fp) fp.remove();
+  var rb = document.getElementById('focus-reopen-btn'); if(rb) rb.remove();
+  G._pendingFocus = [];
+}
+
+function closeFocusPopup() {
+  var el = document.getElementById('focus-popup');
+  if (el) { _focusPopupPos = {top: el.style.top, left: el.style.left, transform: el.style.transform}; el.remove(); }
+  var rb = document.getElementById('focus-reopen-btn'); if(rb) rb.remove();
+  var hasAny = G._pendingFocus && G._pendingFocus.length > 0;
+  if (hasAny) showFocusReopenButton();
 }
 
 function cp() { return G.players[G.currentPlayer]; }
@@ -1192,11 +1376,6 @@ function playCard(cardId) {
   playCardSound(card);
   logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
   applyEffects(card.effects);
-  if (!G.pending && card.focusAspect && card.focusEffects && card.focusEffects.length > 0) {
-    var aspect = card.focusAspect;
-    var hasMatch = p.played.some(function(c){return c.id !== card.id && c.aspect === aspect;}) || p.hand.some(function(c){return c.aspect === aspect;});
-    if (hasMatch) { logAction('<span style="color:'+p.color+'">'+p.name+'</span>: ⚡ Skupienie '+aspect+'!'); applyEffects(card.focusEffects); }
-  }
   render();
 }
 
@@ -1212,10 +1391,6 @@ function playAllCards() {
     playCardSound(card);
     logAction(`<span style="color:${p.color}">${p.name}</span>: zagrywa <b>${card.name}</b>`);
     applyEffects(card.effects);
-    if (!G.pending && card.focusAspect && card.focusEffects && card.focusEffects.length > 0) {
-      var hasMatch = p.played.some(function(c){return c.id !== card.id && c.aspect === card.focusAspect;}) || p.hand.some(function(c){return c.aspect === card.focusAspect;});
-      if (hasMatch) { logAction('<span style="color:'+p.color+'">'+p.name+'</span>: ⚡ Skupienie '+card.focusAspect+'!'); applyEffects(card.focusEffects); }
-    }
     if (G.pending) break; // stop if card requires interaction
   }
   render();
@@ -1396,6 +1571,10 @@ function applyEffects(effects) {
         }
         break;
       }
+      case 'promote_aspect_end_of_turn':
+        if (!G._promoteAspectEndOfTurn) G._promoteAspectEndOfTurn = [];
+        G._promoteAspectEndOfTurn.push({aspect: eff.aspect || 'Posłuszeństwo', count: eff.value || 1});
+        break;
       case 'devour_hand': G.pending = {type:'devour_hand', remaining:eff.value, then:effects.slice(ei+1)}; return;
       case 'choose_one': G.pending = {type:'choose_one', then:effects.slice(ei+1), options:eff.options, remaining:eff.value||1}; return;
       case 'deploy_white_from_trophy': G.pending = {type:'deploy_white_from_trophy', then:effects.slice(ei+1), remaining:eff.value, phase:'pick'}; return;
@@ -1560,7 +1739,7 @@ function buyCard(source, idx) {
   if (G.phase!=='play' || G.pending) return;
   saveUndo();
   let card, cost;
-  if (source==='market') { card=G.market[idx]; if (!card) return; cost=card.cost; }
+  if (source==='market') { card=G.market[idx]; if (!card || card._hidden) return; cost=card.cost; }
   else if (source==='guard') { if (G.houseGuardSupply<=0) return; card={...HOUSE_GUARD,id:uid()}; cost=card.cost; }
   else if (source==='lolth') { if (G.lolthSupply<=0) return; card={...LOLTH_PRIESTESS,id:uid()}; cost=card.cost; }
   if (G.influence<cost) return;
@@ -1615,6 +1794,20 @@ function deployTrophyTroop(nodeId, slotIdx) {
   logAction(`<span style="color:${cp().color}">${cp().name}</span>: wysyła oddział z trofeów`);
   G.pending.remaining--;
   if (G.pending.remaining <= 0) resolvePending();
+  render();
+}
+
+function promoteAspect(cardId) {
+  if (!G.pending || G.pending.type!=='promote_aspect') return;
+  var p = cp();
+  var idx = p.played.findIndex(function(c){return c.id === cardId && c.aspect === G.pending.aspect;});
+  if (idx === -1) return;
+  saveUndo();
+  var card = p.played.splice(idx, 1)[0];
+  if (card.isMadman) { G.madmanSupply++; }
+  else { p.innerCircle.push(card); playSound('awans'); logAction('<span style="color:'+p.color+'">'+p.name+'</span>: awansuje <b>'+card.name+'</b>'); }
+  G.pending.remaining--;
+  if (G.pending.remaining <= 0 || !p.played.some(function(c){return c.aspect === G.pending.aspect;})) resolvePending();
   render();
 }
 
@@ -2187,6 +2380,20 @@ function devourMarketReplace(marketIdx) {
 }
 
 // Recruit free: buy cards from market for free (up to maxCost)
+function recruitFreeAspect(marketIdx) {
+  if (!G.pending || G.pending.type!=='recruit_free_aspect') return;
+  var card = G.market[marketIdx];
+  if (!card || card._hidden || card.cost > G.pending.maxCost || card.aspect !== G.pending.aspect) return;
+  saveUndo();
+  cp().discard.push(G.market.splice(marketIdx, 1)[0]);
+  if (G.marketDeck.length > 0) G.market.push(G.marketDeck.pop());
+  playSound('coin');
+  logAction('<span style="color:'+cp().color+'">'+cp().name+'</span>: werbuje za darmo <b>'+card.name+'</b>');
+  G.pending.remaining--;
+  if (G.pending.remaining <= 0) resolvePending();
+  render();
+}
+
 function recruitFree(marketIdx) {
   if (!G.pending || G.pending.type!=='recruit_free_max_cost') return;
   const card = G.market[marketIdx];
@@ -2417,6 +2624,16 @@ function endTurn() {
     return;
   }
   G._promoteEndOfTurn = 0;
+  // Promote by aspect at end of turn
+  if (G._promoteAspectEndOfTurn && G._promoteAspectEndOfTurn.length > 0) {
+    var req = G._promoteAspectEndOfTurn.shift();
+    var eligible = p.played.filter(function(c){return c.aspect === req.aspect;});
+    if (eligible.length > 0) {
+      G.pending = {type:'promote_aspect', then:[], remaining: Math.min(req.count, eligible.length), aspect: req.aspect};
+      render(); return;
+    }
+  }
+  G._promoteAspectEndOfTurn = null;
   // Unhide all market cards at end of turn
   G.market.forEach(c => delete c._hidden);
   // Return revealed devoured cards from market
@@ -2430,6 +2647,8 @@ function endTurn() {
   drawCards(p, 5);
   G.strength=0; G.influence=0; G.pending=null;
   // Control influence handled in updateControl
+  closeFocusAll();
+  p.hand.forEach(function(c){delete c._focusHidden;});
   logAction(`<span style="color:${p.color}">${p.name}</span>: kończy turę`);
   // Track score history at end of each round (when player 0 finishes)
   if (G.currentPlayer === 0) {
@@ -2529,11 +2748,12 @@ function findCardData_discard(id){return cp().discard.find(c=>c.id===id);}
 function findCardData(id,ctx){const p=isOnline?getMyHand():cp();if(ctx==='hand')return p.hand.find(c=>c.id===id);if(ctx==='played')return p.played.find(c=>c.id===id);if(ctx==='market')return G.market.find(c=>c.id===id);if(id==='guard')return HOUSE_GUARD;if(id==='lolth')return LOLTH_PRIESTESS;return null;}
 
 // --- MARKET TOGGLE ---
-let marketOpen = true;
+let marketAlwaysOpen = true;
 function toggleMarket() {
-  marketOpen = !marketOpen;
-  document.getElementById('market-content').classList.toggle('collapsed', !marketOpen);
-  document.getElementById('market-collapsed-msg').classList.toggle('show', !marketOpen);
+  // Toggle visibility of always-available cards (Guard + Lolth)
+  marketAlwaysOpen = !marketAlwaysOpen;
+  var el = document.getElementById('market-always');
+  if (el) el.style.display = marketAlwaysOpen ? 'flex' : 'none';
 }
 
 // --- DRAG & DROP ---
@@ -2643,12 +2863,14 @@ function renderHand(){
   const fan=document.getElementById('hand-fan');
   fan.innerHTML=p.hand.map((c,i)=>{
     const n=p.hand.length,mid=(n-1)/2,ang=(i-mid)*Math.min(5,35/n),lift=-Math.abs(i-mid)*1.5,ml=n>5?-12:0;
-    const inner = getImg(c)
-      ? `<img src="${getImg(c)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;pointer-events:none">`
-      : `<div style="padding:5px;display:flex;flex-direction:column;gap:1px;height:100%"><span class="cs-name">${c.name}</span><span class="cs-desc">${c.desc}</span><span class="cs-pts">${c.deckPZ}/${c.innerPZ}</span></div>`;
+    var isFocusHidden = c._focusHidden;
+    const inner = isFocusHidden
+      ? `<div style="width:100%;height:100%;background:#000;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid #ffd700" onclick="revealFocusCard('${c.id}')" oncontextmenu="event.preventDefault()"><span style="color:#ffd700;font-size:4em;font-weight:bold;text-shadow:0 0 10px rgba(255,215,0,0.6)">?</span></div>`
+      : (getImg(c)
+        ? `<img src="${getImg(c)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;pointer-events:none">`
+        : `<div style="padding:5px;display:flex;flex-direction:column;gap:1px;height:100%"><span class="cs-name">${c.name}</span><span class="cs-desc">${c.desc}</span><span class="cs-pts">${c.deckPZ}/${c.innerPZ}</span></div>`);
     return`<div class="card-hand" data-id="${c.id}" style="transform:rotate(${ang}deg) translateY(${lift}px);margin-left:${i?ml:0}px;z-index:${i}"
-      onmouseenter="showPreview(findCardData('${c.id}','hand'))" onmouseleave="clearPreview()"
-      onmousedown="startDrag(event,'${c.id}')" ondblclick="dblClickCard('${c.id}')" oncontextmenu="event.preventDefault();dblClickCard('${c.id}')">
+      ${isFocusHidden ? '' : `onmouseenter="showPreview(findCardData('${c.id}','hand'))" onmouseleave="clearPreview()" onmousedown="startDrag(event,'${c.id}')" ondblclick="dblClickCard('${c.id}')" oncontextmenu="event.preventDefault();dblClickCard('${c.id}')"`}>
       ${inner}</div>`;
   }).join('');
   // Animate newly drawn cards
@@ -2665,10 +2887,10 @@ function cardInner(c) {
 
 function renderMarket(){
   const mc=document.getElementById('market-content');
-  let h=`<div class="card-sm" onclick="if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(HOUSE_GUARD)" onmouseleave="clearPreview()" style="${G.influence>=HOUSE_GUARD.cost?'border-color:#b44dff':''}">${cardInner(HOUSE_GUARD)}</div>`;
-  h+=`<div class="card-sm" onclick="if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(LOLTH_PRIESTESS)" onmouseleave="clearPreview()" style="${G.influence>=LOLTH_PRIESTESS.cost?'border-color:#b44dff':''}">${cardInner(LOLTH_PRIESTESS)}</div>`;
-  h+=`<div style="width:1px;background:#333;margin:0 4px;flex-shrink:0"></div>`;
-  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="if(!G.market[${i}]?._hidden)showPreview(findCardData('${c.id}','market'))" onmouseleave="clearPreview()" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
+  let h=`<div id="market-always" style="display:flex;gap:4px;flex-shrink:0"><div class="card-sm" onclick="if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=HOUSE_GUARD.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('guard',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(HOUSE_GUARD);this.style.borderColor=(G.influence>=HOUSE_GUARD.cost)?'#ffd700':'#e94560'" onmouseleave="clearPreview();this.style.borderColor='#222'" style="">${cardInner(HOUSE_GUARD)}</div>`;
+  h+=`<div class="card-sm" onclick="if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');const _el=this;setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');const _el=this;setTimeout(()=>_el.classList.remove('card-shake'),400)}" oncontextmenu="event.preventDefault();if(isOnline&&G.currentPlayer!==myPlayerId){this.classList.add('card-shake');var _e=this;setTimeout(()=>_e.classList.remove('card-shake'),400)}else if(G.influence>=LOLTH_PRIESTESS.cost&&!G.pending){this.classList.add('fly-out');playSound('coin');setTimeout(()=>{buyCard('lolth',0)},250)}else{this.classList.add('card-shake');setTimeout(()=>this.classList.remove('card-shake'),400)}" onmouseenter="showPreview(LOLTH_PRIESTESS);this.style.borderColor=(G.influence>=LOLTH_PRIESTESS.cost)?'#ffd700':'#e94560'" onmouseleave="clearPreview();this.style.borderColor='#222'" style="">${cardInner(LOLTH_PRIESTESS)}</div>`;
+  h+=`<div style="width:1px;background:#333;margin:0 4px;flex-shrink:0"></div></div>`;
+  h+=G.market.map((c,i)=>`<div class="card-sm" onmousedown="if(G.pending?.type==='devour_market_replace'){devourMarketReplace(${i})}else if(G.pending?.type==='devour_market'){devourMarket(${i})}else if(G.pending?.type==='recruit_free_aspect'){recruitFreeAspect(${i})}else if(G.pending?.type==='recruit_free_max_cost'){recruitFree(${i})}else{marketDragStart(event,this,${i})}" oncontextmenu="event.preventDefault();animateBuy(this,${i})" onmouseenter="if(!G.market[${i}]?._hidden){showPreview(findCardData('${c.id}','market'));this.style.borderColor=(G.influence>=G.market[${i}].cost)?'#ffd700':'#e94560'}" onmouseleave="clearPreview();this.style.borderColor=(G.influence>=G.market[${i}]?.cost)?'#b44dff':'#222'" style="${c._fromDevoured?'border-color:#e94560':c._hidden?'background:#111;border-color:#333':(G.pending?.type==='recruit_free_aspect'&&c.cost<=G.pending.maxCost&&c.aspect===G.pending.aspect)?'border-color:#0f0':(G.pending?.type==='recruit_free_max_cost'&&c.cost<=G.pending.maxCost)?'border-color:#0f0':(G.influence>=c.cost?'border-color:#b44dff':'')}">${c._hidden ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#444;font-size:1.5em;cursor:pointer" onclick="revealMarketCard('+i+')">🂠 Kliknij</div>' : cardInner(c)}</div>`).join('');
   mc.innerHTML=h;
   document.getElementById('market-deck-count').textContent=G.marketDeck.length;
 }
@@ -2682,8 +2904,9 @@ function renderPlayed(){
   el.innerHTML=p.played.map(c=>{
     let oc='';
     if(G.pending?.type==='promote')oc=`onclick="promoteCard('${c.id}')"`;
+    if(G.pending?.type==='promote_aspect' && c.aspect===G.pending.aspect)oc=`onclick="promoteAspect('${c.id}')"`;
     if(G.pending?.type==='devour')oc=`onclick="devourCard('${c.id}')"`;
-    return`<div class="played-card-sm" ${oc} style="${G.pending?.type==='promote'||G.pending?.type==='devour'?'border-color:#ffd700':''}">
+    return`<div class="played-card-sm" ${oc} style="${G.pending?.type==='promote'||G.pending?.type==='devour'?'border-color:#ffd700':(G.pending?.type==='promote_aspect'&&c.aspect===G.pending.aspect)?'border-color:#ffd700':''}">
       ${getImg(c) ? `<img src="${getImg(c)}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;pointer-events:none">` : `<span class="cs-name">${c.name}</span><span class="cs-desc">${c.desc}</span>`}</div>`;
   }).join('');
   // Attach hover events after render
@@ -2701,7 +2924,7 @@ function renderInfo(){
 function renderPrompt(){
   const el=document.getElementById('action-prompt');
   if(G.phase==='setup_deploy'){el.classList.remove('hidden');el.innerHTML=`🏰 ${cp().name}: Wyślij oddział do obszaru początkowego`;return;}
-  if(G.pending){const lb={deploy:'Wyślij oddział na puste pole',assassinate:'Zlikwiduj wrogi oddział',place_spy:'Kliknij miasto aby umieścić szpiega',promote:'Kliknij zagraną kartę aby awansować',return_troop:'Kliknij wrogi oddział aby wycofać',devour:'Przeciągnij/kliknij kartę aby pożreć',recruit_madman:'Wybierz przeciwnika',madman_discard:'Odrzuć kartę z ręki aby zwrócić Wyrzutka (lub Pomiń)',devour_hand:'Pożryj kartę z ręki',devour_market_replace:'Kliknij kartę z rynku aby pożreć i zastąpić',devour_market:'Kliknij kartę z rynku aby pożreć',recruit_free_max_cost:'Zwerbuj kartę za darmo (koszt ≤ limit)',deploy_from_trophy:'Weź oddział z sali trofeów',deploy_white_from_trophy:'Weź biały oddział z sali trofeów',recruit_madman_adjacent:'Wybierz przyległego przeciwnika',supplant:'Wyprzyj oddział (przyległy)',supplant_white:'Kliknij biały oddział aby wyprzeć',supplant_white_presence:'Wyprzyj przyległy biały oddział',assassinate_white:'Zlikwiduj biały oddział',assassinate_white_area:'Zlikwiduj białe z 1 obszaru',return_own_spy:'Kliknij swojego szpiega aby wycofać',return_spy_supplant_single:'Kliknij szpiega aby wycofać i wyprzeć',place_spy_bonus_strength:'Umieść szpiega (+1⚔️ jeśli wróg)',place_spy_bonus_if_enemy_spy:'Umieść szpiega (+3⚔️ jeśli wrogi szpieg)',place_spy_bonus_influence:'Umieść szpiega (+2💎 jeśli wrogi oddział)',place_spy_steal_trophies:'Umieść szpiega (kradnij z trofeów wroga)',return_enemy:'Wycofaj oddział lub szpiega przeciwnika',assassinate_at_spy:'Zlikwiduj oddział w obszarze szpiega',return_spies_supplant:'Kliknij swoich szpiegów aby wycofać, potem Gotowe',promote_any:'Awansuj kartę (zagrane/ręka/odrzucone)',devour_self_cost:'Pożryj tę kartę?',promote_deck:'Awansuj karty z talii',devour_inner_circle:'Pożryj kartę z wew. kręgu',promote_from_discard:'Awansuj kartę z odrzuconych',move_enemy:'Kliknij wrogi oddział aby przesunąć',move_enemy_place:'Kliknij puste pole aby umieścić',supplant_in_areas:'Wyprzyj oddział w zaznaczonym obszarze',deploy_trophy_place:'Wyślij oddział z trofeów na puste pole',choose_one:'Wybierz jedną opcję'};el.classList.remove('hidden');let html=`⚡ ${lb[G.pending.type]||G.pending.type} (${G.pending.remaining||''}) <button onclick="skipPending()">Pomiń</button>`;
+  if(G.pending){const lb={deploy:'Wyślij oddział na puste pole',assassinate:'Zlikwiduj wrogi oddział',place_spy:'Kliknij miasto aby umieścić szpiega',promote:'Kliknij zagraną kartę aby awansować',return_troop:'Kliknij wrogi oddział aby wycofać',devour:'Przeciągnij/kliknij kartę aby pożreć',recruit_madman:'Wybierz przeciwnika',madman_discard:'Odrzuć kartę z ręki aby zwrócić Wyrzutka (lub Pomiń)',devour_hand:'Pożryj kartę z ręki',devour_market_replace:'Kliknij kartę z rynku aby pożreć i zastąpić',devour_market:'Kliknij kartę z rynku aby pożreć',recruit_free_max_cost:'Zwerbuj kartę za darmo (koszt ≤ limit)',deploy_from_trophy:'Weź oddział z sali trofeów',deploy_white_from_trophy:'Weź biały oddział z sali trofeów',recruit_madman_adjacent:'Wybierz przyległego przeciwnika',supplant:'Wyprzyj oddział (przyległy)',supplant_white:'Kliknij biały oddział aby wyprzeć',supplant_white_presence:'Wyprzyj przyległy biały oddział',assassinate_white:'Zlikwiduj biały oddział',assassinate_white_area:'Zlikwiduj białe z 1 obszaru',return_own_spy:'Kliknij swojego szpiega aby wycofać',return_spy_supplant_single:'Kliknij szpiega aby wycofać i wyprzeć',place_spy_bonus_strength:'Umieść szpiega (+1⚔️ jeśli wróg)',place_spy_bonus_if_enemy_spy:'Umieść szpiega (+3⚔️ jeśli wrogi szpieg)',place_spy_bonus_influence:'Umieść szpiega (+2💎 jeśli wrogi oddział)',place_spy_steal_trophies:'Umieść szpiega (kradnij z trofeów wroga)',return_enemy:'Wycofaj oddział lub szpiega przeciwnika',assassinate_at_spy:'Zlikwiduj oddział w obszarze szpiega',return_spies_supplant:'Kliknij swoich szpiegów aby wycofać, potem Gotowe',promote_any:'Awansuj kartę (zagrane/ręka/odrzucone)',promote_aspect:'Awansuj kartę z aspektem',devour_self_cost:'Pożryj tę kartę?',promote_deck:'Awansuj karty z talii',devour_inner_circle:'Pożryj kartę z wew. kręgu',promote_from_discard:'Awansuj kartę z odrzuconych',move_enemy:'Kliknij wrogi oddział aby przesunąć',move_enemy_place:'Kliknij puste pole aby umieścić',supplant_in_areas:'Wyprzyj oddział w zaznaczonym obszarze',deploy_trophy_place:'Wyślij oddział z trofeów na puste pole',choose_one:'Wybierz jedną opcję'};el.classList.remove('hidden');let html=`⚡ ${lb[G.pending.type]||G.pending.type}${G.pending.remaining>1?' ('+G.pending.remaining+')':''} <button onclick="skipPending()">Pomiń</button>`;
     if(G.pending.type==='return_spies_supplant'){html+=`<div style="margin-top:4px"><button onclick="finishReturnSpies()" style="background:#4ecdc4">✓ Gotowe (wycofano ${G.pending.returnedAreas.length})</button></div>`;}
     if(G.pending.type==='promote_from_discard'){
       const p=cp();
@@ -2739,6 +2962,9 @@ function renderPrompt(){
         `<div onclick="devourFromInnerCircle('${c.id}')" style="cursor:pointer;border:2px solid #f33;border-radius:6px;overflow:hidden;width:50px;height:70px;display:inline-flex;align-items:center;justify-content:center;background:#16213e;font-size:.55em">
           ${c.image?`<img src="${getImg(c)}" style="width:100%;height:100%;object-fit:cover">`:`<span style="color:#ffd700">${c.name}</span>`}
         </div>`).join('')}</div>`;
+    }
+    if(G.pending.type==='promote_aspect'){
+      html+='<div style="margin-top:4px;font-size:.8em;color:#aaa">Aspekt: <b>'+G.pending.aspect+'</b> \u2014 kliknij kart\u0119 w zagranych</div>';
     }
     if(G.pending.type==='recruit_madman'){html+=`<div style="margin-top:4px">${G.players.map((p,i)=>i!==G.currentPlayer?`<button onclick="recruitMadman(${i})" style="background:${COLORS[i]};margin:2px">${p.name}</button>`:'').join('')}</div>`;}
     if(G.pending.type==='choose_one'){html+=`<div style="margin-top:4px">${G.pending.options.map((o,i)=>`<button onclick="chooseOption(${i})" style="margin:2px;background:#2a1a4e;border:1px solid #b44dff"><span style="color:#ffd700">[${i+1}]</span> ${o.label}</button>`).join('')}</div>`;}
@@ -2916,6 +3142,8 @@ function showPile(type) {
   if (existing) { existing.remove(); return; }
   const panel = document.createElement('div');
   panel.id = 'pile-panel-'+type;
+  panel.setAttribute('data-zoomable','');
+  panel.oncontextmenu = function(e){e.preventDefault();togglePanelZoom(panel);};
   panel.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(15,15,34,0.85);backdrop-filter:blur(6px);border:1px solid rgba(180,77,255,0.4);border-radius:12px;padding:10px 14px;z-index:150;min-width:200px;max-width:80vw;max-height:60vh;overflow-y:auto;cursor:move;user-select:none';
   let h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
   h += '<span style="color:#b44dff;font-weight:bold;font-size:.85em">'+title+' ('+cards.length+')</span>';
@@ -2935,20 +3163,25 @@ function showPile(type) {
 }
 
 function showTrophyPile(playerIdx) {
-  const overlay = document.createElement('div');
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;display:flex;align-items:center;justify-content:center';
-  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
-  let inner = `<div style="background:#111128;border:2px solid #b44dff;border-radius:12px;padding:16px;max-width:80vw;max-height:80vh;overflow-y:auto">`;
-  inner += `<h3 style="color:#b44dff;margin-bottom:8px">Sale trofeów</h3>`;
-  G.players.forEach((p,pi) => {
-    inner += `<div style="margin-bottom:8px"><span style="color:${COLORS[pi]};font-weight:bold">${p.name}</span> (${p.trophyHall.length}): `;
-    if (p.trophyHall.length === 0) inner += `<span style="color:#555">brak</span>`;
-    else inner += p.trophyHall.map(t => `<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${t.color};border:1px solid rgba(255,255,255,.3);margin:1px;vertical-align:middle"></span>`).join('');
-    inner += `</div>`;
+  var existing = document.getElementById('pile-panel-trophy');
+  if (existing) { existing.remove(); return; }
+  var panel = document.createElement('div');
+  panel.id = 'pile-panel-trophy';
+  panel.oncontextmenu = function(e){e.preventDefault();togglePanelZoom(panel);};
+  panel.setAttribute('data-zoomable','');
+  panel.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(15,15,34,0.85);backdrop-filter:blur(6px);border:1px solid rgba(180,77,255,0.4);border-radius:12px;padding:10px 14px;z-index:150;min-width:200px;max-width:80vw;max-height:60vh;overflow-y:auto;cursor:move;user-select:none';
+  var h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+  h += '<span style="color:#b44dff;font-weight:bold;font-size:.85em">Sale trofe\u00f3w</span>';
+  h += '<span onclick="this.parentElement.parentElement.remove()" style="cursor:pointer;color:#888;font-size:1.2em">\u2715</span></div>';
+  G.players.forEach(function(p,pi) {
+    h += '<div style="margin-bottom:6px"><span style="color:'+COLORS[pi]+';font-weight:bold">'+p.name+'</span> ('+p.trophyHall.length+'): ';
+    if (p.trophyHall.length === 0) h += '<span style="color:#555">brak</span>';
+    else h += p.trophyHall.map(function(t){return '<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:'+t.color+';border:1px solid rgba(255,255,255,.3);margin:1px;vertical-align:middle"></span>';}).join('');
+    h += '</div>';
   });
-  inner += `<button onclick="this.closest('div[style]').parentElement.remove()" style="margin-top:10px">Zamknij</button></div>`;
-  overlay.innerHTML = inner;
-  document.body.appendChild(overlay);
+  panel.innerHTML = h;
+  document.body.appendChild(panel);
+  panel.addEventListener('mousedown', function(e) { if(!e.target.closest('[onclick]')) startPanelDrag(e,'pile-panel-trophy'); });
 }
 
 function bindCardEvents(){}
@@ -3229,6 +3462,7 @@ document.getElementById('btn-ready').addEventListener('click', () => {
   document.getElementById('transition-screen').style.display = 'none';
   document.getElementById('game-area').style.display = 'flex';
   document.getElementById('top-bar').style.display = 'flex';
+  checkHandFocus();
   render();
 });
 
@@ -3304,7 +3538,7 @@ document.addEventListener('keyup', e => {
 
 // --- SOUND SYSTEM ---
 let soundMuted = false;
-const SOUNDS = {
+window.SOUNDS = {
   draw: new Audio('sounds/draw.wav'),
   deploy1: new Audio('sounds/jednostka_1.mp3'),
   deploy2: new Audio('sounds/jednostka_2.mp3'),
@@ -3314,12 +3548,14 @@ const SOUNDS = {
   death3: new Audio('sounds/death_3.mp3'),
   awans: new Audio('sounds/awans.mp3'),
   allcards: new Audio('sounds/allcards.wav'),
-  coin: new Audio('sounds/coin.mp3')
+  coin: new Audio('sounds/coin.mp3'),
+  myturn: new Audio('sounds/myturn.mp3'),
+  denied: new Audio('sounds/denied.mp3')
 };
 function playSound(name) {
   _sndQ.push(name);
   if (soundMuted) return;
-  const s = SOUNDS[name];
+  const s = window.SOUNDS[name];
   if (!s) return;
   try {
     const clone = s.cloneNode();
@@ -3344,9 +3580,21 @@ function playDeploySound() {
   else playSound('deploy3');
 }
 let audioUnlocked=false;
-function unlockAudio(){if(audioUnlocked)return;audioUnlocked=true;Object.values(SOUNDS).forEach(s=>{s.volume=0;s.play().then(()=>{s.pause();s.currentTime=0;s.volume=0.4}).catch(()=>{})});}
+function unlockAudio(){if(audioUnlocked)return;audioUnlocked=true;Object.values(window.SOUNDS).forEach(s=>{s.volume=0;s.play().then(()=>{s.pause();s.currentTime=0;s.volume=0.4}).catch(()=>{})});}
 document.addEventListener('click',unlockAudio,{once:true});
 document.addEventListener('keydown',unlockAudio,{once:true});
+function revealFocusCard(cardId) {
+  var p = cp();
+  var card = p.hand.find(function(c) { return c.id === cardId; });
+  if (!card || !card._focusHidden) return;
+  delete card._focusHidden;
+  blockReset();
+  // Now check if this card triggers new focus
+  checkHandFocus();
+  showFocusPendingPopup();
+  render();
+}
+
 function revealMarketCard(idx) {
   if (!G.market[idx]) return;
   if (isOnline && G.currentPlayer !== myPlayerId) return;
@@ -3376,14 +3624,34 @@ function playCardSound(card) {
 }
 
 // Preload all sounds
-Object.values(SOUNDS).forEach(s => { s.preload = 'auto'; s.load(); });
+Object.values(window.SOUNDS).forEach(s => { s.preload = 'auto'; s.load(); });
+
+function togglePanelZoom(el) {
+  el.classList.toggle('panel-zoomed-single');
+}
 
 function toggleMute() { soundMuted = !soundMuted; }
+
+function playLocalSound(name) {
+  if (soundMuted) return;
+  var s = window.SOUNDS[name] || window.CARD_SOUNDS[name];
+  if (!s) return;
+  try { var c = s.cloneNode(); c.volume = 0.4; c.play().catch(function(){}); } catch(e) {}
+}
+
+var _uiZoomed = false;
+function toggleUIZoom() {
+  _uiZoomed = !_uiZoomed;
+  document.body.classList.toggle('ui-zoomed', _uiZoomed);
+  var btn = document.getElementById('btn-zoom');
+  if (btn) btn.textContent = _uiZoomed ? '🔍 \u2212' : '🔍 +';
+}
 
 function animateBuy(el, idx) {
   const card = G.market[idx];
   if (!card || G.pending) return;
-  if ((isOnline && G.currentPlayer!==myPlayerId) || G.influence < card.cost) { el.classList.add('card-shake'); setTimeout(()=>el.classList.remove('card-shake'),400); return; }
+  if (card._hidden) { el.classList.add('card-shake'); setTimeout(()=>el.classList.remove('card-shake'),400); playLocalSound('denied'); return; }
+  if ((isOnline && G.currentPlayer!==myPlayerId) || G.influence < card.cost) { el.classList.add('card-shake'); setTimeout(()=>el.classList.remove('card-shake'),400); playLocalSound('denied'); return; }
   el.classList.add('fly-out');
   playSound('coin');
   setTimeout(() => { buyCard('market', idx); }, 250);
@@ -3396,8 +3664,9 @@ function marketDragStart(e, el, idx) {
   e.preventDefault();
   const card = G.market[idx];
   if (!card || G.pending) return;
-  if (isOnline && G.currentPlayer!==myPlayerId) { el.classList.add('card-shake'); setTimeout(()=>el.classList.remove('card-shake'),400); return; }
-  if (G.influence < card.cost) { el.classList.add('card-shake'); setTimeout(()=>el.classList.remove('card-shake'),400); return; }
+  if (card._hidden) { el.classList.add('card-shake'); setTimeout(()=>el.classList.remove('card-shake'),400); playLocalSound('denied'); return; }
+  if (isOnline && G.currentPlayer!==myPlayerId) { el.classList.add('card-shake'); setTimeout(()=>el.classList.remove('card-shake'),400); playLocalSound('denied'); return; }
+  if (G.influence < card.cost) { el.classList.add('card-shake'); setTimeout(()=>el.classList.remove('card-shake'),400); playLocalSound('denied'); return; }
   marketDrag = {idx, el, startX:e.clientX, startY:e.clientY, moved:false};
   document.addEventListener('mousemove', marketDragMove);
   document.addEventListener('mouseup', marketDragEnd);
@@ -3506,6 +3775,7 @@ function showArmyPanel() {
   if (existing) { existing.remove(); return; }
   const panel = document.createElement('div');
   panel.id = 'army-panel';
+  panel.oncontextmenu = function(e){e.preventDefault();togglePanelZoom(panel);};
   panel.style.cssText = 'position:fixed;top:100px;right:20px;background:rgba(15,15,34,0.85);backdrop-filter:blur(6px);border:1px solid rgba(180,77,255,0.4);border-radius:12px;padding:10px 14px;z-index:150;min-width:220px;cursor:move;user-select:none';
   let h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
   h += '<span style="color:#b44dff;font-weight:bold;font-size:.85em">⚔️ Armie</span>';
@@ -3558,6 +3828,7 @@ function updateCitiesCount() {
 
 function showControlPanel() {
   const panel = document.getElementById('control-panel');
+  if (panel.style.display === 'block') { panel.style.display = 'none'; return; }
   panel.style.display = 'block';
   const content = document.getElementById('control-panel-content');
   let h = '';
@@ -3943,16 +4214,42 @@ let _turnStartState = null;
 let _canResetTurn = true;
 
 function saveTurnStart() {
+  G._usedFocusIds = [];
   _turnStartState = JSON.stringify(G);
   _canResetTurn = true;
   updateResetButton();
+  // Play local "your turn" sound
+  if (!isOnline || G.currentPlayer === myPlayerId) playLocalSound('myturn');
+  // Focus check happens when player is ready (after transition screen or immediately in online)
+  if (isOnline) checkHandFocus();
+}
+
+function checkHandFocus() {
+  var p = cp();
+  if (!G._usedFocusIds) G._usedFocusIds = [];
+  G._pendingFocus = [];
+  var focusCards = p.hand.filter(function(c) { return c.focusAspect && c.focusEffects && c.focusEffects.length > 0; });
+  focusCards.forEach(function(card) {
+    var used = G._usedFocusIds.indexOf(card.id) >= 0;
+    var matching = p.hand.filter(function(c) { return c.id !== card.id && c.aspect === card.focusAspect; });
+    if (matching.length > 0) {
+      G._pendingFocus.push({card: card, aspect: card.focusAspect, count: matching.length, effects: card.focusEffects, used: used});
+    }
+  });
+  if (G._pendingFocus.length > 0) {
+    showFocusPendingPopup();
+  }
 }
 
 function resetTurn() {
   if (!_canResetTurn || !_turnStartState) return;
   G = JSON.parse(_turnStartState);
   G.adjacency = rebuildAdjacency();
-  logAction(`<span style="color:${cp().color}">${cp().name}</span>: ↩ resetuje turę`);
+  G._usedFocusIds = [];
+  G._pendingFocus = [];
+  closeFocusAll();
+  logAction(`<span style="color:${cp().color}">${cp().name}</span>: \u21a9 resetuje tur\u0119`);
+  checkHandFocus();
   render();
 }
 
