@@ -239,6 +239,8 @@ let hostConn = null;  // client: connection to host
 function setLocalMode() {
   isOnline = false;
   var ls=document.getElementById('local-setup'); if(ls) ls.style.display='block';
+  document.getElementById('btn-start').disabled=false;
+  document.getElementById('btn-start').textContent='🎮 Rozpocznij grę';
   document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
   document.getElementById('online-status').style.color = '#4ecdc4';
   document.getElementById('join-input').style.display = 'none';
@@ -344,6 +346,7 @@ function handleClientMessage(data) {
   }
   if (data.type === 'assignId') {
     myPlayerId = data.playerId;
+      document.getElementById('lobby-table-section').style.display='block';
     document.getElementById('online-status').textContent = '🔗 Połączono! Gracz #' + (myPlayerId+1);
   }
   if (data.type === 'state') {
@@ -3545,6 +3548,8 @@ hostConn = null;  // client: connection to host
 function setLocalMode() {
   isOnline = false;
   var ls=document.getElementById('local-setup'); if(ls) ls.style.display='block';
+  document.getElementById('btn-start').disabled=false;
+  document.getElementById('btn-start').textContent='🎮 Rozpocznij grę';
   document.getElementById('online-status').textContent = '👥 Tryb lokalny (hot-seat)';
   document.getElementById('online-status').style.color = '#4ecdc4';
   document.getElementById('join-input').style.display = 'none';
