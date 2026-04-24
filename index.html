@@ -403,6 +403,7 @@ button, a, [onclick], [style*='cursor:pointer'], .section-toggle, .card-hand, .c
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <script>
 
 // Firebase Configuration
@@ -574,29 +575,24 @@ function connectToHost() {
         if (fp !== null) { lobbyFirstPlayer = fp; renderLobbyStatus(); }
       });
       
-      // Listen for game state
-      roomRef.child('state').on('value', function(snap2) {
-        var stateStr = snap2.val();
-        if (!stateStr || stateStr === '') return;
-        G = JSON.parse(stateStr);
-        restoreCards(G);
-        G.adjacency = rebuildAdjacency();
-        render();
-      });
-      
-      // Listen for sounds
-      roomRef.child('snd').on('value', function(snap2) {
-        var sndArr = snap2.val();
-        if (!sndArr || !sndArr.length) return;
-        _playSnd(sndArr);
-        // Clear after playing
-        roomRef.child('snd').set([]);
-      });
-      
-      // Listen for log
-      roomRef.child('log').on('value', function(snap2) {
-        var logArr = snap2.val();
-        if (logArr) actionLog = logArr;
+      // Single combined listener for state + log + sounds
+      roomRef.child('packet').on('value', function(snap2) {
+        var compressed = snap2.val();
+        if (!compressed) return;
+        try {
+          var json = LZString.decompressFromUTF16(compressed);
+          if (!json) return;
+          var payload = JSON.parse(json);
+          // Restore game state
+          G = payload.g;
+          restoreState(G);
+          G.adjacency = rebuildAdjacency();
+          // Restore log
+          if (payload.log) actionLog = payload.log;
+          // Play sounds
+          if (payload.snd && payload.snd.length) _playSnd(payload.snd);
+          render();
+        } catch(e) { console.error('packet parse error:', e); }
       });
       
       // Listen for game start
@@ -661,7 +657,6 @@ function buildCardLookup() {
 var _STRIP_FIELDS = ['effects','desc','focusEffects','focusAspect','subtype'];
 function stripCards(obj) {
   if (!obj) return;
-  // Strip static fields from all card arrays in game state
   var arrays = ['hand','deck','discard','played','innerCircle'];
   if (obj.players) obj.players.forEach(function(p) {
     arrays.forEach(function(a) {
@@ -669,10 +664,24 @@ function stripCards(obj) {
         _STRIP_FIELDS.forEach(function(f) { delete c[f]; });
       });
     });
+    // Client only needs deck/discard length, not contents
+    if (p.deck) p.deck = p.deck.map(function(c) { return {id:c.id, imageKey:c.imageKey, isMadman:c.isMadman||undefined}; });
   });
   if (obj.market) obj.market.forEach(function(c) { _STRIP_FIELDS.forEach(function(f) { delete c[f]; }); });
-  if (obj.marketDeck) obj.marketDeck.forEach(function(c) { _STRIP_FIELDS.forEach(function(f) { delete c[f]; }); });
+  // Client only needs marketDeck length
+  if (obj.marketDeck) obj.marketDeck = new Array(obj.marketDeck.length);
   if (obj.devoured) obj.devoured.forEach(function(c) { _STRIP_FIELDS.forEach(function(f) { delete c[f]; }); });
+  // Strip adjacency (static, rebuilt locally)
+  delete obj._adjData;
+}
+
+function restoreState(obj) {
+  if (!obj) return;
+  // Restore marketDeck as array of empty objects (only length matters for display)
+  if (obj.marketDeck && obj.marketDeck.length > 0 && !obj.marketDeck[0]) {
+    obj.marketDeck = obj.marketDeck.map(function() { return {}; });
+  }
+  restoreCards(obj);
 }
 
 function restoreCards(obj) {
@@ -704,21 +713,26 @@ function restoreCards(obj) {
   if (obj.devoured) obj.devoured.forEach(restore);
 }
 
+var _broadcastTimer = null;
+var _broadcastPending = false;
 function broadcastState() {
   if (!isHost || !isOnline || !roomRef) return;
-  // Deep copy, strip static data, then broadcast
+  _broadcastPending = true;
+  if (_broadcastTimer) return; // throttled - will fire soon
+  _broadcastTimer = setTimeout(_doBroadcast, 150);
+}
+function _doBroadcast() {
+  _broadcastTimer = null;
+  if (!_broadcastPending) return;
+  _broadcastPending = false;
   var gCopy = JSON.parse(JSON.stringify(G));
   stripCards(gCopy);
-  var stateStr = JSON.stringify(gCopy);
-  var updates = {
-    state: stateStr,
-    log: actionLog
-  };
-  if (_sndQ.length > 0) {
-    updates.snd = _sndQ.slice();
-    _sndQ = [];
-  }
-  roomRef.update(updates);
+  // Combined payload: state + log + sounds in one object
+  var payload = { g: gCopy, log: actionLog };
+  if (_sndQ.length > 0) { payload.snd = _sndQ.slice(); _sndQ = []; }
+  // Compress with LZ-string
+  var compressed = LZString.compressToUTF16(JSON.stringify(payload));
+  roomRef.child('packet').set(compressed);
 }
 
 function updateLobby() {
@@ -1075,6 +1089,7 @@ const MARKET_POOL_DEF = [
 function buildMarketPool() {
   const pool = [];
   for (const def of MARKET_POOL_DEF) {
+    if (!def.imageKey) def.imageKey = def.name + '|' + (def.cost||0);
     for (let i = 0; i < (def.copies || 1); i++) {
       const { copies, ...card } = def;
       pool.push({...card});
@@ -4424,10 +4439,10 @@ var _origStartGameWithDecks2 = startGameWithDecks;
 startGameWithDecks = function(decks) {
   _origStartGameWithDecks2(decks);
   if (isHost && isOnline && roomRef) {
-    roomRef.update({
-      state: JSON.stringify(G),
-      started: true
-    });
+    roomRef.child('started').set(true);
+    if (_broadcastTimer) { clearTimeout(_broadcastTimer); _broadcastTimer = null; }
+    _broadcastPending = true;
+    _doBroadcast();
   }
 };
 
