@@ -579,6 +579,7 @@ function connectToHost() {
         var stateStr = snap2.val();
         if (!stateStr || stateStr === '') return;
         G = JSON.parse(stateStr);
+        restoreCards(G);
         G.adjacency = rebuildAdjacency();
         render();
       });
@@ -644,9 +645,71 @@ function _playSnd(arr) {
 }
 
 window._soundQueue = window._soundQueue || [];
+var CARD_LOOKUP = {};
+function buildCardLookup() {
+  CARD_LOOKUP = {};
+  MARKET_POOL_DEF.forEach(function(c) {
+    var key = c.imageKey || c.name + '|' + (c.cost||0);
+    CARD_LOOKUP[key] = c;
+  });
+  // Base cards
+  [NOBLE,SOLDIER,HOUSE_GUARD,LOLTH_PRIESTESS,MADMAN_CARD].forEach(function(c) {
+    if (c.imageKey) CARD_LOOKUP[c.imageKey] = c;
+  });
+}
+
+var _STRIP_FIELDS = ['effects','desc','focusEffects','focusAspect','subtype'];
+function stripCards(obj) {
+  if (!obj) return;
+  // Strip static fields from all card arrays in game state
+  var arrays = ['hand','deck','discard','played','innerCircle'];
+  if (obj.players) obj.players.forEach(function(p) {
+    arrays.forEach(function(a) {
+      if (p[a]) p[a].forEach(function(c) {
+        _STRIP_FIELDS.forEach(function(f) { delete c[f]; });
+      });
+    });
+  });
+  if (obj.market) obj.market.forEach(function(c) { _STRIP_FIELDS.forEach(function(f) { delete c[f]; }); });
+  if (obj.marketDeck) obj.marketDeck.forEach(function(c) { _STRIP_FIELDS.forEach(function(f) { delete c[f]; }); });
+  if (obj.devoured) obj.devoured.forEach(function(c) { _STRIP_FIELDS.forEach(function(f) { delete c[f]; }); });
+}
+
+function restoreCards(obj) {
+  if (!obj) return;
+  var arrays = ['hand','deck','discard','played','innerCircle'];
+  function restore(c) {
+    if (!c) return;
+    // Madman cards - restore from template
+    if (c.isMadman && !c.effects) {
+      _STRIP_FIELDS.forEach(function(f) { if (MADMAN_CARD[f] !== undefined && c[f] === undefined) c[f] = MADMAN_CARD[f]; });
+      return;
+    }
+    if (!c.imageKey) return;
+    var def = CARD_LOOKUP[c.imageKey];
+    if (!def) {
+      // Try base cards
+      if (c.name === NOBLE.name) def = NOBLE;
+      else if (c.name === SOLDIER.name) def = SOLDIER;
+      else if (c.name === HOUSE_GUARD.name) def = HOUSE_GUARD;
+      else if (c.name === LOLTH_PRIESTESS.name) def = LOLTH_PRIESTESS;
+    }
+    if (def) { _STRIP_FIELDS.forEach(function(f) { if (def[f] !== undefined && c[f] === undefined) c[f] = def[f]; }); }
+  }
+  if (obj.players) obj.players.forEach(function(p) {
+    arrays.forEach(function(a) { if (p[a]) p[a].forEach(restore); });
+  });
+  if (obj.market) obj.market.forEach(restore);
+  if (obj.marketDeck) obj.marketDeck.forEach(restore);
+  if (obj.devoured) obj.devoured.forEach(restore);
+}
+
 function broadcastState() {
   if (!isHost || !isOnline || !roomRef) return;
-  var stateStr = JSON.stringify(G);
+  // Deep copy, strip static data, then broadcast
+  var gCopy = JSON.parse(JSON.stringify(G));
+  stripCards(gCopy);
+  var stateStr = JSON.stringify(gCopy);
   var updates = {
     state: stateStr,
     log: actionLog
@@ -3452,7 +3515,7 @@ document.getElementById('btn-load-cards').addEventListener('click', () => {
         const defs = eval(m[1]);
         // Replace MARKET_POOL_DEF
         MARKET_POOL_DEF.length = 0;
-        defs.forEach(c => { storeImg(c); MARKET_POOL_DEF.push(c); });
+        defs.forEach(c => { storeImg(c); MARKET_POOL_DEF.push(c); }); buildCardLookup();
         // Load base card images
         const mb = text.match(/BASE_CARDS\s*=\s*(\{[\s\S]*?\});/);
         if (mb) {
@@ -3586,6 +3649,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 
 function startGameWithDecks(selectedDecks) {
+  buildCardLookup();
   if(window.lobbyMusic){window.lobbyMusic.pause();window.lobbyMusic.currentTime=0;}
   // Filter market pool to only selected decks
   if (selectedDecks.length > 0) {
