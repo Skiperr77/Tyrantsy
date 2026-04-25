@@ -576,6 +576,7 @@ function connectToHost() {
       });
       
       // Single combined listener for state + log + sounds
+      var _gameShown = false;
       roomRef.child('packet').on('value', function(snap2) {
         var compressed = snap2.val();
         if (!compressed) return;
@@ -583,14 +584,19 @@ function connectToHost() {
           var json = LZString.decompressFromUTF16(compressed);
           if (!json) return;
           var payload = JSON.parse(json);
-          // Restore game state
           G = payload.g;
           restoreState(G);
           G.adjacency = rebuildAdjacency();
-          // Restore log
           if (payload.log) actionLog = payload.log;
-          // Play sounds
           if (payload.snd && payload.snd.length) _playSnd(payload.snd);
+          // Show game area if not yet shown
+          if (!_gameShown && G) {
+            _gameShown = true;
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('game-area').style.display = 'flex';
+            document.getElementById('top-bar').style.display = 'flex';
+            if (!window._mapInitialized) { initMapControls(); window._mapInitialized = true; }
+          }
           render();
         } catch(e) { console.error('packet parse error:', e); }
       });
@@ -610,10 +616,16 @@ function connectToHost() {
       });
       
       // If game already started (reconnection), load immediately
-      if (room.started && room.state) {
-        G = JSON.parse(room.state);
-        G.adjacency = rebuildAdjacency();
-        if (room.log) actionLog = room.log;
+      if (room.started && room.packet) {
+        try {
+          var json = LZString.decompressFromUTF16(room.packet);
+          var payload = JSON.parse(json);
+          G = payload.g;
+          restoreState(G);
+          G.adjacency = rebuildAdjacency();
+          if (payload.log) actionLog = payload.log;
+        } catch(e) {}
+        _gameShown = true;
         document.getElementById('setup-screen').style.display = 'none';
         document.getElementById('game-area').style.display = 'flex';
         document.getElementById('top-bar').style.display = 'flex';
