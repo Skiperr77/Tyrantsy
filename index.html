@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<script>var _sndQ=[];var _animQ=[];window.CARD_SOUNDS=window.CARD_SOUNDS||{};
+<script>var _sndQ=[];var _animQ=[];var _skipNextSnd=false;window.CARD_SOUNDS=window.CARD_SOUNDS||{};
 function _loadSoundFile(name, dataUrl, statusEl) {
   var c = name.split('.')[0];
   // Check if it's a card back image
@@ -642,12 +642,16 @@ function hostGame() {
     });
     // Listen for client state updates (e.g. forced discard)
     roomRef.child('clientState').on('value', function(snap) {
-      var compressed = snap.val();
-      if (!compressed) return;
+      var data = snap.val();
+      if (!data) return;
       try {
-        var json = LZString.decompressFromUTF16(compressed);
-        var payload = JSON.parse(json);
-        if (payload.g) { G = payload.g; restoreState(G); G.adjacency = rebuildAdjacency(); broadcastState(); render(); }
+        var parsed = JSON.parse(data);
+        if (parsed.playerIdx !== undefined && parsed.player) {
+          G.players[parsed.playerIdx] = parsed.player;
+          if (parsed.strength !== undefined) G.strength = parsed.strength;
+          if (parsed.influence !== undefined) G.influence = parsed.influence;
+          broadcastState(); render();
+        }
       } catch(e) {}
       roomRef.child('clientState').remove();
     });
@@ -730,10 +734,13 @@ function connectToHost() {
           if(G._mapAreas&&!customMapLoaded){MAP_AREAS.length=0;G._mapAreas.forEach(function(a){MAP_AREAS.push(a);});MAP_ROADS.length=0;(G._mapRoads||[]).forEach(function(r){MAP_ROADS.push(r);});customMapLoaded=true;}
           restoreState(G);
           G.adjacency = rebuildAdjacency();
-          if (payload.log) actionLog = payload.log;
-          else if (payload.nl) payload.nl.forEach(function(l) { actionLog.push(l); if (actionLog.length > 100) actionLog.shift(); });
-          if (payload.snd && payload.snd.length) _playSnd(payload.snd);
-          if (payload.anim && payload.anim.length) _playAnim(payload.anim);
+          if (payload.snd && payload.snd.length && !_skipNextSnd) _playSnd(payload.snd);
+          if (payload.anim && payload.anim.length && !_skipNextSnd) _playAnim(payload.anim);
+          if (!_skipNextSnd) {
+            if (payload.log) actionLog = payload.log;
+            else if (payload.nl) payload.nl.forEach(function(l) { actionLog.push(l); if (actionLog.length > 100) actionLog.shift(); });
+          }
+          _skipNextSnd = false;
           // Play myturn sound when it becomes my turn
           if (G.currentPlayer === myPlayerId && _lastSeenPlayer !== myPlayerId && G.phase !== 'setup_deploy') {
             playLocalSound('myturn');
@@ -807,6 +814,11 @@ function _playAnim(arr) {
   arr.forEach(function(a){
     if(a.type==='madman'&&typeof animateMadman==='function') animateMadman(MADMAN_CARD,a.from,a.to);
     if(a.type==='poison'&&typeof animatePoisonedMinion==='function') animatePoisonedMinion(POISONED_MINION_CARD,a.from,a.to);
+    if(a.type==='float') {
+      var el=document.createElement('div');
+      el.style.cssText='position:fixed;z-index:601;left:50%;top:40%;font-size:1.4em;font-weight:bold;pointer-events:none;text-shadow:0 0 10px rgba(0,0,0,0.8);color:'+(a.color||'#ffd700')+';animation:floatText 1.5s ease-out forwards';
+      el.textContent=a.text;document.body.appendChild(el);setTimeout(function(){if(el.parentNode)el.remove();},1600);
+    }
   });
 }
 
@@ -1489,9 +1501,7 @@ function activateFocus(idx) {
   // Sync state after focus activation
   if (isOnline && isHost) broadcastState();
   else if (isOnline && roomRef) {
-    var gCopy = JSON.parse(JSON.stringify(G));
-    var compressed = LZString.compressToUTF16(JSON.stringify({g:gCopy}));
-    roomRef.child('clientState').set(compressed);
+    roomRef.child('clientState').set(JSON.stringify({playerIdx:myPlayerId, player:G.players[myPlayerId], strength:G.strength, influence:G.influence}));
   }
   // Don't re-check focus yet - wait for card reveal
   showFocusPendingPopup();
@@ -2315,10 +2325,8 @@ function forcedDiscardAtTurnStart(cardId, srcEl) {
   logAction('<span style="color:'+p.color+'">'+p.name+'</span>: odrzuca <b>'+card.name+'</b> (wymuszony)');
   if (isOnline && isHost) broadcastState();
   else if (isOnline && roomRef) {
-    // Client sends updated state to host
-    var gCopy = JSON.parse(JSON.stringify(G));
-    var compressed = LZString.compressToUTF16(JSON.stringify({g:gCopy}));
-    roomRef.child('clientState').set(compressed);
+    // Client sends only own player data to host
+    roomRef.child('clientState').set(JSON.stringify({playerIdx:myPlayerId, player:G.players[myPlayerId]}));
   }
   if (p.pendingDiscards <= 0) {
     setTimeout(function() {
@@ -6726,6 +6734,7 @@ function showEndGameBanner() {
 }
 
 function showFloatingText(text, color) {
+  _animQ.push({type:'float',text:text,color:color||'#ffd700'});
   var el = document.createElement('div');
   el.style.cssText = 'position:fixed;z-index:601;left:50%;top:40%;font-size:1.4em;font-weight:bold;pointer-events:none;text-shadow:0 0 10px rgba(0,0,0,0.8);color:'+(color||'#ffd700')+';animation:floatText 1.5s ease-out forwards';
   el.textContent = text;
@@ -7206,6 +7215,7 @@ function netWrap(name, fn) {
       // Send action to host via Firebase
       roomRef.child('clientAction').set({name: name, args: args, t: Date.now()});
       // Also execute locally for animations/sounds
+      _skipNextSnd = true;
       fn.apply(null, args);
       return;
     }
