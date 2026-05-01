@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<script>var _sndQ=[];window.CARD_SOUNDS=window.CARD_SOUNDS||{};
+<script>var _sndQ=[];var _animQ=[];window.CARD_SOUNDS=window.CARD_SOUNDS||{};
 function _loadSoundFile(name, dataUrl, statusEl) {
   var c = name.split('.')[0];
   // Check if it's a card back image
@@ -640,6 +640,17 @@ function hostGame() {
       // Clear the action
       roomRef.child('clientAction').remove();
     });
+    // Listen for client state updates (e.g. forced discard)
+    roomRef.child('clientState').on('value', function(snap) {
+      var compressed = snap.val();
+      if (!compressed) return;
+      try {
+        var json = LZString.decompressFromUTF16(compressed);
+        var payload = JSON.parse(json);
+        if (payload.g) { G = payload.g; restoreState(G); G.adjacency = rebuildAdjacency(); broadcastState(); render(); }
+      } catch(e) {}
+      roomRef.child('clientState').remove();
+    });
     
     
   }).catch(function(err) {
@@ -722,6 +733,7 @@ function connectToHost() {
           if (payload.log) actionLog = payload.log;
           else if (payload.nl) payload.nl.forEach(function(l) { actionLog.push(l); if (actionLog.length > 100) actionLog.shift(); });
           if (payload.snd && payload.snd.length) _playSnd(payload.snd);
+          if (payload.anim && payload.anim.length) _playAnim(payload.anim);
           // Play myturn sound when it becomes my turn
           if (G.currentPlayer === myPlayerId && _lastSeenPlayer !== myPlayerId && G.phase !== 'setup_deploy') {
             playLocalSound('myturn');
@@ -738,6 +750,7 @@ function connectToHost() {
             if (!window._mapInitialized) { initMapControls(); window._mapInitialized = true; }
           }
           render();
+          if (G.gameOver) showFinalScores();
         } catch(e) { console.error('packet parse error:', e); }
       });
       
@@ -789,6 +802,14 @@ function connectToHost() {
 
 function updateOnlinePlayers() {}
 
+function _playAnim(arr) {
+  if(!arr||!arr.length)return;
+  arr.forEach(function(a){
+    if(a.type==='madman'&&typeof animateMadman==='function') animateMadman(MADMAN_CARD,a.from,a.to);
+    if(a.type==='poison'&&typeof animatePoisonedMinion==='function') animatePoisonedMinion(POISONED_MINION_CARD,a.from,a.to);
+  });
+}
+
 function _playSnd(arr) {
   if(!arr||!arr.length)return;
   arr.forEach(function(s){
@@ -825,7 +846,7 @@ function stripCards(obj) {
       });
     });
     // Client only needs deck/discard length, not contents
-    if (p.deck) p.deck = p.deck.map(function(c) { return {id:c.id, imageKey:c.imageKey, isMadman:c.isMadman||undefined}; });
+    if (p.deck) p.deck = p.deck.map(function(c) { return {id:c.id, name:c.name, imageKey:c.imageKey, isMadman:c.isMadman||undefined, deckPZ:c.deckPZ||0, innerPZ:c.innerPZ||0}; });
   });
   if (obj.market) obj.market.forEach(function(c) { _STRIP_FIELDS.forEach(function(f) { delete c[f]; }); });
   // Client only needs marketDeck length
@@ -896,6 +917,7 @@ function _doBroadcast() {
   }
   _lastBroadcastLogIdx = actionLog.length;
   if (_sndQ.length > 0) { payload.snd = _sndQ.slice(); _sndQ = []; }
+  if (_animQ.length > 0) { payload.anim = _animQ.slice(); _animQ = []; }
   // Compress with LZ-string
   var compressed = LZString.compressToUTF16(JSON.stringify(payload));
   roomRef.child('packet').set(compressed);
@@ -1464,6 +1486,13 @@ function activateFocus(idx) {
   G._focusDrawing = true;
   applyEffects(f.effects);
   G._focusDrawing = false;
+  // Sync state after focus activation
+  if (isOnline && isHost) broadcastState();
+  else if (isOnline && roomRef) {
+    var gCopy = JSON.parse(JSON.stringify(G));
+    var compressed = LZString.compressToUTF16(JSON.stringify({g:gCopy}));
+    roomRef.child('clientState').set(compressed);
+  }
   // Don't re-check focus yet - wait for card reveal
   showFocusPendingPopup();
   render();
@@ -2284,6 +2313,13 @@ function forcedDiscardAtTurnStart(cardId, srcEl) {
   animateDiscard(card, srcEl||'center');
   if(window.SOUNDS['death2'])playSound('death2');else playDeathSound();
   logAction('<span style="color:'+p.color+'">'+p.name+'</span>: odrzuca <b>'+card.name+'</b> (wymuszony)');
+  if (isOnline && isHost) broadcastState();
+  else if (isOnline && roomRef) {
+    // Client sends updated state to host
+    var gCopy = JSON.parse(JSON.stringify(G));
+    var compressed = LZString.compressToUTF16(JSON.stringify({g:gCopy}));
+    roomRef.child('clientState').set(compressed);
+  }
   if (p.pendingDiscards <= 0) {
     setTimeout(function() {
       closeForcedDiscardPopup();
@@ -2766,7 +2802,7 @@ function recruitPoisonedMinion(targetPlayerIdx) {
   var target = G.players[targetPlayerIdx];
   target.discard.push({...POISONED_MINION_CARD, id: uid()});
   G.poisonedMinionSupply--;
-  animatePoisonedMinion(POISONED_MINION_CARD, G.currentPlayer, targetPlayerIdx);
+  animatePoisonedMinion(POISONED_MINION_CARD, G.currentPlayer, targetPlayerIdx); _animQ.push({type:"poison",from:G.currentPlayer,to:targetPlayerIdx});
   logAction('<span style="color:'+cp().color+'">'+cp().name+'</span>: werbuje Zatrutego sługę do talii <span style="color:'+target.color+'">'+target.name+'</span>');
   G.pending.remaining--;
   if (G.pending.remaining <= 0) resolvePending();
@@ -2800,7 +2836,7 @@ function recruitMadman(targetPlayerIdx) {
   const target = G.players[targetPlayerIdx];
   target.discard.push({...MADMAN_CARD, id: uid()});
   G.madmanSupply--;
-  animateMadman(MADMAN_CARD, G.currentPlayer, targetPlayerIdx);
+  animateMadman(MADMAN_CARD, G.currentPlayer, targetPlayerIdx); _animQ.push({type:"madman",from:G.currentPlayer,to:targetPlayerIdx});
   logAction(`<span style="color:${cp().color}">${cp().name}</span>: werbuje Szalonego wyrzutka do talii <span style="color:${target.color}">${target.name}</span> [${G.madmanSupply} pozostało]`);
   checkRetaliatePzDraw(targetPlayerIdx);
   G.pending.remaining--;
@@ -2820,7 +2856,7 @@ function recruitMadmanAdjacent(targetPlayerIdx) {
   const target = G.players[targetPlayerIdx];
   target.discard.push({...MADMAN_CARD, id: uid()});
   G.madmanSupply--;
-  animateMadman(MADMAN_CARD, G.currentPlayer, targetPlayerIdx);
+  animateMadman(MADMAN_CARD, G.currentPlayer, targetPlayerIdx); _animQ.push({type:"madman",from:G.currentPlayer,to:targetPlayerIdx});
   logAction(`<span style="color:${cp().color}">${cp().name}</span>: werbuje Wyrzutka do talii <span style="color:${target.color}">${target.name}</span> (przyległy)`);
   G.pending.remaining--;
   if (G.pending.remaining<=0) resolvePending();
@@ -4078,15 +4114,14 @@ function updateControl(nodeId) {
   // Immediate influence bonus when gaining control
   if (ctrl !== null && ctrl !== prevCtrl && G.phase === 'play') {
     const p = G.players[ctrl];
-    if (node.controlBonus?.influence) {
-      G.influence += node.controlBonus.influence;
-      showFloatingText('+'+node.controlBonus.influence+' 💎 kontrola '+node.name, '#ffd700');
-      logAction(`<span style="color:${p.color}">${p.name}</span>: +${node.controlBonus.influence}💎 kontrola ${node.name}`);
-    }
     if (hasFullControl(node, ctrl) && node.fullControlBonus?.influence) {
       G.influence += node.fullControlBonus.influence;
       showFloatingText('+'+node.fullControlBonus.influence+' 💎 pełna kontrola '+node.name, '#ffd700');
       logAction(`<span style="color:${p.color}">${p.name}</span>: +${node.fullControlBonus.influence}💎 pełna kontrola ${node.name}`);
+    } else if (node.controlBonus?.influence) {
+      G.influence += node.controlBonus.influence;
+      showFloatingText('+'+node.controlBonus.influence+' 💎 kontrola '+node.name, '#ffd700');
+      logAction(`<span style="color:${p.color}">${p.name}</span>: +${node.controlBonus.influence}💎 kontrola ${node.name}`);
     }
   }
   // Check if full control gained (already had control, now full)
@@ -4123,26 +4158,24 @@ function endTurn() {
   const p = cp(), pi = G.currentPlayer;
   // VP from control tokens (scored at end of turn)
   var _hasPZ = false;
+  var _pzNodes = [];
   for (const node of G.board) {
     if (node.nodeType!=='city' || node.controlledBy!==pi) continue;
-    if (node.controlBonus?.pzPerTurn) {
+    if (hasFullControl(node, pi) && node.fullControlBonus?.pzPerTurn) {
+      p.vpTokens += node.fullControlBonus.pzPerTurn;
+      if(!p.cityPZ)p.cityPZ={};p.cityPZ[node.id]=(p.cityPZ[node.id]||0)+node.fullControlBonus.pzPerTurn;
+      _pzNodes.push({id:node.id, amount:node.fullControlBonus.pzPerTurn});
+      logAction(`<span style="color:${p.color}">${p.name}</span>: +${node.fullControlBonus.pzPerTurn}PZ pełna kontrola ${node.name}`);
+      _hasPZ = true;
+    } else if (node.controlBonus?.pzPerTurn) {
       p.vpTokens += node.controlBonus.pzPerTurn;
       if(!p.cityPZ)p.cityPZ={};p.cityPZ[node.id]=(p.cityPZ[node.id]||0)+node.controlBonus.pzPerTurn;
-      showFloatingPZ(node.id, node.controlBonus.pzPerTurn);
+      _pzNodes.push({id:node.id, amount:node.controlBonus.pzPerTurn});
       logAction(`<span style="color:${p.color}">${p.name}</span>: +${node.controlBonus.pzPerTurn}PZ kontrola ${node.name}`);
       _hasPZ = true;
     }
-    if (hasFullControl(node, pi)) {
-      if (node.fullControlBonus?.pzPerTurn) {
-        p.vpTokens += node.fullControlBonus.pzPerTurn;
-        if(!p.cityPZ)p.cityPZ={};p.cityPZ[node.id]=(p.cityPZ[node.id]||0)+node.fullControlBonus.pzPerTurn;
-        showFloatingPZ(node.id, node.fullControlBonus.pzPerTurn);
-        logAction(`<span style="color:${p.color}">${p.name}</span>: +${node.fullControlBonus.pzPerTurn}PZ pełna kontrola ${node.name}`);
-        _hasPZ = true;
-      }
-    }
   }
-  if (_hasPZ) { render(); setTimeout(function(){ _endTurnContinue(p, pi); }, 1500); return; }
+  if (_hasPZ) { render(); setTimeout(function(){ _pzNodes.forEach(function(pn){showFloatingPZ(pn.id,pn.amount);}); }, 100); setTimeout(function(){ _endTurnContinue(p, pi); }, 1500); return; }
   _endTurnContinue(p, pi);
 }
 function _endTurnContinue(p, pi) {
@@ -4412,7 +4445,9 @@ function render(){
   document.getElementById('res-influence').textContent=`💎 ${showInf}`;
   const myP = (isOnline && myPlayerId >= 0) ? G.players[myPlayerId] : p;
   document.getElementById('res-tokens').textContent=`🏆 ${myP.vpTokens}`;
-  document.getElementById('scores').innerHTML=scores.map((s,i)=>`<span class="score-badge ${i===pi?'active':''}" style="border:2px solid ${COLORS[i]};position:relative;cursor:pointer" onclick="toggleScoreDetail(${i})" onmouseleave="hideScoreDetail()">${s.name}: ${s.total}<div class="score-detail" id="sd-${i}">Talia: ${s.deckPZ}<br>Awanse: ${s.innerPZ}<br>Kontrola: ${s.areaPZ}<br>Pełna kontrola: +${s.fullControlBonus}<br>Trofea: ${s.trophyPZ}<br>Żetony PZ: ${s.tokenPZ}<br><b>Razem: ${s.total}</b></div></span>`).join('');
+  var _fp = G.firstPlayer||0;
+  var _order = []; for(var _oi=0;_oi<G.players.length;_oi++) _order.push((_fp+_oi)%G.players.length);
+  document.getElementById('scores').innerHTML=_order.map(function(i){var s=scores[i];return `<span class="score-badge ${i===pi?'active':''}" style="border:2px solid ${COLORS[i]};position:relative;cursor:pointer" onclick="toggleScoreDetail(${i})" onmouseleave="hideScoreDetail()">${i===_fp?'👑 ':''}${s.name}: ${s.total}<div class="score-detail" id="sd-${i}">Talia: ${s.deckPZ}<br>Awanse: ${s.innerPZ}<br>Kontrola: ${s.areaPZ}<br>Pełna kontrola: +${s.fullControlBonus}<br>Trofea: ${s.trophyPZ}<br>Żetony PZ: ${s.tokenPZ}<br><b>Razem: ${s.total}</b></div></span>`;}).join('');
   renderPrompt();
   // Auto-show last played card preview when pending
   if (G.pending && !previewCard && (!isOnline || G.currentPlayer===myPlayerId)) { const lp = cp().played; if (lp.length > 0) showPreview(lp[lp.length-1]); }_spyHighlight = false;
@@ -4731,8 +4766,9 @@ function renderSVGMap(){
   const pi=G.currentPlayer,cities=G.board.filter(n=>n.nodeType==='city'),spots=G.board.filter(n=>n.nodeType==='spot');
   const sPos={};for(const s of spots)sPos[s.id]=getSpotSVGPos(s);
 
-  var _vb=customMapLoaded&&MAP_AREAS.length>0?Math.max(104,Math.ceil(Math.max(...MAP_AREAS.map(a=>a.x),...MAP_AREAS.map(a=>a.y))+8)):104;
-  let svg=`<svg viewBox="-2 -2 ${_vb} ${_vb}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;background:linear-gradient(135deg,#0a0a18,#0d1225,#0a0a18);border-radius:8px;font-family:sans-serif;transform-origin:center center">`;
+  var _vbW=customMapLoaded&&MAP_AREAS.length>0?Math.max(104,Math.ceil(Math.max(...MAP_AREAS.map(a=>a.x),...G.board.filter(n=>n.x).map(n=>n.x))+8)):104;
+  var _vbH=customMapLoaded&&MAP_AREAS.length>0?Math.max(104,Math.ceil(Math.max(...MAP_AREAS.map(a=>a.y),...G.board.filter(n=>n.y).map(n=>n.y))+8)):104;
+  let svg=`<svg viewBox="-2 -2 ${_vbW} ${_vbH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;background:linear-gradient(135deg,#0a0a18,#0d1225,#0a0a18);border-radius:8px;font-family:sans-serif;transform-origin:center center">`;
 
   // Direct city-city lines
   if(!G._allRoads){const dr=new Set();for(const[nid,nbs]of Object.entries(G.adjacency)){const nA=G.board.find(n=>n.id===nid);if(!nA||nA.nodeType!=='city')continue;for(const nb of nbs){const nB=G.board.find(n=>n.id===nb);if(!nB||nB.nodeType!=='city')continue;const k=[nid,nb].sort().join('-');if(dr.has(k))continue;dr.add(k);svg+=`<line x1="${nA.x}" y1="${nA.y}" x2="${nB.x}" y2="${nB.y}" stroke="rgba(200,180,230,0.55)" stroke-width="0.5" stroke-dasharray="0.6,0.4"/>`;}}}
@@ -7169,6 +7205,8 @@ function netWrap(name, fn) {
     if (isOnline && !isHost && roomRef) {
       // Send action to host via Firebase
       roomRef.child('clientAction').set({name: name, args: args, t: Date.now()});
+      // Also execute locally for animations/sounds
+      fn.apply(null, args);
       return;
     }
     fn.apply(null, args);
@@ -7248,7 +7286,8 @@ _local.spyOnHandPickPlayer = spyOnHandPickPlayer; spyOnHandPickPlayer = netWrap(
 _local.spyOnHandPickCard = spyOnHandPickCard; spyOnHandPickCard = netWrap('spyOnHandPickCard', _local.spyOnHandPickCard);
 _local.spyOnHandRecruit = spyOnHandRecruit; spyOnHandRecruit = netWrap('spyOnHandRecruit', _local.spyOnHandRecruit);
 _local.spyOnHandDiscard = spyOnHandDiscard; spyOnHandDiscard = netWrap('spyOnHandDiscard', _local.spyOnHandDiscard);
-_local.forcedDiscardAtTurnStart = forcedDiscardAtTurnStart; forcedDiscardAtTurnStart = netWrap('forcedDiscardAtTurnStart', _local.forcedDiscardAtTurnStart);
+_local.forcedDiscardAtTurnStart = forcedDiscardAtTurnStart;
+// forcedDiscardAtTurnStart runs locally on client (not via netWrap) because client has full hand data
 _local.promoteAspect = promoteAspect; promoteAspect = netWrap('promoteAspect', _local.promoteAspect);
 _local.supplantAnywhere = supplantAnywhere; supplantAnywhere = netWrap('supplantAnywhere', _local.supplantAnywhere);
 _local.assassinateWhiteArea = assassinateWhiteArea; assassinateWhiteArea = netWrap('assassinateWhiteArea', _local.assassinateWhiteArea);
