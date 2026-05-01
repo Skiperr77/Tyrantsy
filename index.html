@@ -2344,6 +2344,7 @@ function forcedDiscardAtTurnStart(cardId, srcEl) {
 function showForcedDiscardPopup() {
   var p = isOnline && myPlayerId >= 0 ? G.players[myPlayerId] : cp();
   if (!p.pendingDiscards || p.pendingDiscards <= 0) return false;
+  if (isOnline && G.currentPlayer !== myPlayerId) return false;
   var popup = document.getElementById('forced-discard-popup');
   if (!popup) {
     popup = document.createElement('div');
