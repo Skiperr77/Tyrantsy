@@ -716,6 +716,7 @@ function connectToHost() {
           if (!json) return;
           var payload = JSON.parse(json);
           G = payload.g;
+          if(G._mapAreas&&!customMapLoaded){MAP_AREAS.length=0;G._mapAreas.forEach(function(a){MAP_AREAS.push(a);});MAP_ROADS.length=0;(G._mapRoads||[]).forEach(function(r){MAP_ROADS.push(r);});customMapLoaded=true;}
           restoreState(G);
           G.adjacency = rebuildAdjacency();
           if (payload.log) actionLog = payload.log;
@@ -725,6 +726,7 @@ function connectToHost() {
           if (G.currentPlayer === myPlayerId && _lastSeenPlayer !== myPlayerId && G.phase !== 'setup_deploy') {
             playLocalSound('myturn');
             showTurnBanner(G.players[myPlayerId].name, G.players[myPlayerId].color);
+            setTimeout(function(){ if(!showForcedDiscardPopup()) checkHandFocus(); }, 500);
           }
           _lastSeenPlayer = G.currentPlayer;
           // Show game area if not yet shown
@@ -765,6 +767,7 @@ function connectToHost() {
           var json = LZString.decompressFromUTF16(room.packet);
           var payload = JSON.parse(json);
           G = payload.g;
+          if(G._mapAreas&&!customMapLoaded){MAP_AREAS.length=0;G._mapAreas.forEach(function(a){MAP_AREAS.push(a);});MAP_ROADS.length=0;(G._mapRoads||[]).forEach(function(r){MAP_ROADS.push(r);});customMapLoaded=true;}
           restoreState(G);
           G.adjacency = rebuildAdjacency();
           if (payload.log) actionLog = payload.log;
@@ -858,7 +861,7 @@ function restoreCards(obj) {
       else if (c.name === HOUSE_GUARD.name) def = HOUSE_GUARD;
       else if (c.name === LOLTH_PRIESTESS.name) def = LOLTH_PRIESTESS;
     }
-    if (def) { _STRIP_FIELDS.forEach(function(f) { if (def[f] !== undefined && c[f] === undefined) c[f] = def[f]; }); }
+    if (def) { _STRIP_FIELDS.forEach(function(f) { if (def[f] !== undefined && c[f] === undefined) c[f] = def[f]; }); ['name','cost','deckPZ','innerPZ','aspect','copies'].forEach(function(f){ if(def[f]!==undefined&&c[f]===undefined)c[f]=def[f]; }); }
   }
   if (obj.players) obj.players.forEach(function(p) {
     arrays.forEach(function(a) { if (p[a]) p[a].forEach(restore); });
@@ -1618,7 +1621,7 @@ function setupDeploy(nodeId) {
   if(window.SOUND_GROUPS.start&&window.SOUND_GROUPS.start.length)playGroupSound('start');else playSound('deploy');
   G.setupDeployIdx++;
   if (G.setupDeployIdx >= G.setupDeployOrder.length) {
-    G.phase = 'play'; G.currentPlayer = 0;
+    G.phase = 'play'; G.currentPlayer = G.firstPlayer || 0;
   } else {
     G.currentPlayer = G.setupDeployOrder[G.setupDeployIdx];
   }
@@ -2248,7 +2251,7 @@ function spendAssassinate(nodeId, slotIdx) {
 }
 
 function forcedDiscardAtTurnStart(cardId, srcEl) {
-  var p = cp();
+  var p = isOnline && myPlayerId >= 0 ? G.players[myPlayerId] : cp();
   if (!p.pendingDiscards || p.pendingDiscards <= 0) return;
   var idx = p.hand.findIndex(c => c.id === cardId);
   if (idx === -1) return;
@@ -2293,7 +2296,7 @@ function forcedDiscardAtTurnStart(cardId, srcEl) {
 }
 
 function showForcedDiscardPopup() {
-  var p = cp();
+  var p = isOnline && myPlayerId >= 0 ? G.players[myPlayerId] : cp();
   if (!p.pendingDiscards || p.pendingDiscards <= 0) return false;
   var popup = document.getElementById('forced-discard-popup');
   if (!popup) {
@@ -4225,6 +4228,7 @@ function _endTurnContinue(p, pi) {
   if (G.endTriggered && G.currentPlayer===(G.firstPlayer||0)) { G.gameOver=true; render(); showFinalScores(); return; }
   saveTurnStart();
   showTransition();
+  if(isOnline && isHost) broadcastState();
   if(typeof botTakeTurn==='function'&&typeof isBotTurn==='function'&&isBotTurn())setTimeout(botTakeTurn,500);
 }
 
@@ -7114,6 +7118,7 @@ function pickLobbyColor(playerIdx, hex) {
   COLORS[playerIdx] = hex;
   COLOR_NAMES[playerIdx] = (ALL_COLORS.find(function(c){return c.hex===hex;})||{}).name||'';
   if (isHost) updateLobby();
+  else if (isOnline && roomRef) roomRef.child('players/' + myPlayerId + '/color').set(hex);
   renderLobbyStatus();
 }
 
@@ -7221,6 +7226,7 @@ setupDeploy = netWrap('setupDeploy', _local.setupDeploy);
 var _origStartGameWithDecks2 = startGameWithDecks;
 startGameWithDecks = function(decks) {
   _origStartGameWithDecks2(decks);
+  if (customMapLoaded && G) { G._mapAreas = MAP_AREAS.slice(); G._mapRoads = MAP_ROADS.slice(); }
   if (isHost && isOnline && roomRef) {
     roomRef.child('started').set(true);
     if (_broadcastTimer) { clearTimeout(_broadcastTimer); _broadcastTimer = null; }
