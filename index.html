@@ -3616,10 +3616,17 @@ function playFromMarket(marketIdx) {
   // Play card sound
   playCardSound(card);
   logAction('<span style="color:'+cp().color+'">'+cp().name+'</span>: ✨ zagrywa z rynku <b style="color:#0f0">'+card.name+'</b>');
+  // Temporarily add to played for focus/effect checks
+  cp().played.push(card);
+  // Check focus for this card
+  if (card.focusAspect || card.focusSubtype) checkFocus(cp(), card);
   // Apply the card's effects (card stays on market visually)
   G.pending.remaining--;
   if (G.pending.remaining <= 0) G.pending = null;
   applyEffects(card.effects);
+  // Remove from played (will be devoured)
+  var _pidx = cp().played.findIndex(function(c){return c.id===card.id;});
+  if (_pidx !== -1) cp().played.splice(_pidx, 1);
   // Now devour: remove from market, animate, add to devoured
   var taken = G.market.splice(marketIdx, 1)[0];
   if (G.marketDeck.length > 0) { var _mc = G.marketDeck.pop(); _mc._hidden = _canResetTurn; G.market.push(_mc); }
@@ -7221,6 +7228,30 @@ promoteFromDiscard = netWrap('promoteFromDiscard', _local.promoteFromDiscard);
 devourMarketReplace = netWrap('devourMarketReplace', _local.devourMarketReplace);
 madmanDiscard = netWrap('madmanDiscard', _local.madmanDiscard);
 setupDeploy = netWrap('setupDeploy', _local.setupDeploy);
+// New mechanics
+_local.placeSpyControlBonus = placeSpyControlBonus; placeSpyControlBonus = netWrap('placeSpyControlBonus', _local.placeSpyControlBonus);
+_local.assassinateReplaceWhite = assassinateReplaceWhite; assassinateReplaceWhite = netWrap('assassinateReplaceWhite', _local.assassinateReplaceWhite);
+_local.placeOnTopDeck = placeOnTopDeck; placeOnTopDeck = netWrap('placeOnTopDeck', _local.placeOnTopDeck);
+_local.recruitAndPromote = recruitAndPromote; recruitAndPromote = netWrap('recruitAndPromote', _local.recruitAndPromote);
+_local.copyPlayed = copyPlayed; copyPlayed = netWrap('copyPlayed', _local.copyPlayed);
+_local.doConvertInfluence = doConvertInfluence; doConvertInfluence = netWrap('doConvertInfluence', _local.doConvertInfluence);
+_local.convertStrengthToPZ = convertStrengthToPZ; convertStrengthToPZ = netWrap('convertStrengthToPZ', _local.convertStrengthToPZ);
+_local.returnTroopAnywhere = returnTroopAnywhere; returnTroopAnywhere = netWrap('returnTroopAnywhere', _local.returnTroopAnywhere);
+_local.recruitFreeAny = recruitFreeAny; recruitFreeAny = netWrap('recruitFreeAny', _local.recruitFreeAny);
+_local.recruitFromBudget = recruitFromBudget; recruitFromBudget = netWrap('recruitFromBudget', _local.recruitFromBudget);
+_local.finishRecruitBudget = finishRecruitBudget; finishRecruitBudget = netWrap('finishRecruitBudget', _local.finishRecruitBudget);
+_local.moveEnemySpyPick = moveEnemySpyPick; moveEnemySpyPick = netWrap('moveEnemySpyPick', _local.moveEnemySpyPick);
+_local.moveEnemySpyPlace = moveEnemySpyPlace; moveEnemySpyPlace = netWrap('moveEnemySpyPlace', _local.moveEnemySpyPlace);
+_local.returnSpyAssassinatePick = returnSpyAssassinatePick; returnSpyAssassinatePick = netWrap('returnSpyAssassinatePick', _local.returnSpyAssassinatePick);
+_local.returnSpyAssassinateKill = returnSpyAssassinateKill; returnSpyAssassinateKill = netWrap('returnSpyAssassinateKill', _local.returnSpyAssassinateKill);
+_local.spyOnHandPickPlayer = spyOnHandPickPlayer; spyOnHandPickPlayer = netWrap('spyOnHandPickPlayer', _local.spyOnHandPickPlayer);
+_local.spyOnHandPickCard = spyOnHandPickCard; spyOnHandPickCard = netWrap('spyOnHandPickCard', _local.spyOnHandPickCard);
+_local.spyOnHandRecruit = spyOnHandRecruit; spyOnHandRecruit = netWrap('spyOnHandRecruit', _local.spyOnHandRecruit);
+_local.spyOnHandDiscard = spyOnHandDiscard; spyOnHandDiscard = netWrap('spyOnHandDiscard', _local.spyOnHandDiscard);
+_local.forcedDiscardAtTurnStart = forcedDiscardAtTurnStart; forcedDiscardAtTurnStart = netWrap('forcedDiscardAtTurnStart', _local.forcedDiscardAtTurnStart);
+_local.promoteAspect = promoteAspect; promoteAspect = netWrap('promoteAspect', _local.promoteAspect);
+_local.supplantAnywhere = supplantAnywhere; supplantAnywhere = netWrap('supplantAnywhere', _local.supplantAnywhere);
+_local.assassinateWhiteArea = assassinateWhiteArea; assassinateWhiteArea = netWrap('assassinateWhiteArea', _local.assassinateWhiteArea);
 
 // Override start to broadcast
 var _origStartGameWithDecks2 = startGameWithDecks;
