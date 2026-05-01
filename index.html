@@ -826,6 +826,7 @@ function _playSnd(arr) {
   if(!arr||!arr.length)return;
   arr.forEach(function(s){
     if(s.indexOf('card:')===0){
+      if(cardSoundsMuted||soundMuted)return;
       var code=s.slice(5);
       if(window.CARD_SOUNDS[code]){try{window.CARD_SOUNDS[code].cloneNode().play().catch(function(){});}catch(e){}}
       else{try{var a=new Audio('sounds/cards/'+code+'.wav');a.volume=0.5;a.play().catch(function(){});}catch(e){}}
@@ -2290,7 +2291,13 @@ function spendAssassinate(nodeId, slotIdx) {
 }
 
 function forcedDiscardAtTurnStart(cardId, srcEl) {
-  var p = isOnline && myPlayerId >= 0 ? G.players[myPlayerId] : cp();
+  // Find player who has this card in hand and pendingDiscards > 0
+  var p = null;
+  for (var _pi = 0; _pi < G.players.length; _pi++) {
+    var _pp = G.players[_pi];
+    if (_pp.pendingDiscards > 0 && _pp.hand.some(function(c){return c.id===cardId;})) { p = _pp; break; }
+  }
+  if (!p) p = isOnline && myPlayerId >= 0 ? G.players[myPlayerId] : cp();
   if (!p.pendingDiscards || p.pendingDiscards <= 0) return;
   var idx = p.hand.findIndex(c => c.id === cardId);
   if (idx === -1) return;
@@ -2323,11 +2330,6 @@ function forcedDiscardAtTurnStart(cardId, srcEl) {
   animateDiscard(card, srcEl||'center');
   if(window.SOUNDS['death2'])playSound('death2');else playDeathSound();
   logAction('<span style="color:'+p.color+'">'+p.name+'</span>: odrzuca <b>'+card.name+'</b> (wymuszony)');
-  if (isOnline && isHost) broadcastState();
-  else if (isOnline && roomRef) {
-    // Client sends only own player data to host
-    roomRef.child('clientState').set(JSON.stringify({playerIdx:myPlayerId, player:G.players[myPlayerId]}));
-  }
   if (p.pendingDiscards <= 0) {
     setTimeout(function() {
       closeForcedDiscardPopup();
@@ -5126,6 +5128,7 @@ function restartGame(){
     roomRef.child('packet').remove();
     // Reset ready status
     lobbyPlayers.forEach(function(p){p.ready=false;});
+    lobbyPlayers[0].ready = true;
     updateLobby();
   }
   document.getElementById('setup-screen').style.display='flex';
@@ -7296,8 +7299,7 @@ _local.spyOnHandPickPlayer = spyOnHandPickPlayer; spyOnHandPickPlayer = netWrap(
 _local.spyOnHandPickCard = spyOnHandPickCard; spyOnHandPickCard = netWrap('spyOnHandPickCard', _local.spyOnHandPickCard);
 _local.spyOnHandRecruit = spyOnHandRecruit; spyOnHandRecruit = netWrap('spyOnHandRecruit', _local.spyOnHandRecruit);
 _local.spyOnHandDiscard = spyOnHandDiscard; spyOnHandDiscard = netWrap('spyOnHandDiscard', _local.spyOnHandDiscard);
-_local.forcedDiscardAtTurnStart = forcedDiscardAtTurnStart;
-// forcedDiscardAtTurnStart runs locally on client (not via netWrap) because client has full hand data
+_local.forcedDiscardAtTurnStart = forcedDiscardAtTurnStart; forcedDiscardAtTurnStart = netWrap('forcedDiscardAtTurnStart', _local.forcedDiscardAtTurnStart);
 _local.promoteAspect = promoteAspect; promoteAspect = netWrap('promoteAspect', _local.promoteAspect);
 _local.supplantAnywhere = supplantAnywhere; supplantAnywhere = netWrap('supplantAnywhere', _local.supplantAnywhere);
 _local.assassinateWhiteArea = assassinateWhiteArea; assassinateWhiteArea = netWrap('assassinateWhiteArea', _local.assassinateWhiteArea);
