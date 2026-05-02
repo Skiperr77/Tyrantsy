@@ -383,7 +383,7 @@ button, a, [onclick], [style*='cursor:pointer'], .section-toggle, .map-slot, .ma
 }
 .card-poison { position:fixed;z-index:700;animation:poisonFly 1.3s ease-in-out forwards;pointer-events:none;
   box-shadow:0 0 20px rgba(180,77,255,0.7);border:2px solid #b44dff;border-radius:8px;overflow:hidden; }
-.card-madman { position:fixed;z-index:700;animation:madmanFly 1.3s ease-in-out forwards;pointer-events:none;
+.card-madman { position:fixed;z-index:700;animation:madmanFly 1.5s ease-in-out forwards;pointer-events:none;
   box-shadow:0 0 20px rgba(233,69,96,0.7);border:2px solid #e94560;border-radius:8px;overflow:hidden; }
 
 
@@ -2333,6 +2333,7 @@ function forcedDiscardAtTurnStart(cardId, srcEl) {
   if (p.pendingDiscards <= 0) {
     setTimeout(function() {
       closeForcedDiscardPopup();
+      _turnStartState = JSON.stringify(G);
       checkHandFocus();
       render();
     }, 450);
@@ -2344,7 +2345,6 @@ function forcedDiscardAtTurnStart(cardId, srcEl) {
 function showForcedDiscardPopup() {
   var p = isOnline && myPlayerId >= 0 ? G.players[myPlayerId] : cp();
   if (!p.pendingDiscards || p.pendingDiscards <= 0) return false;
-  if (isOnline && G.currentPlayer !== myPlayerId) return false;
   var popup = document.getElementById('forced-discard-popup');
   if (!popup) {
     popup = document.createElement('div');
@@ -2559,7 +2559,7 @@ function checkRetaliatePzDraw(targetPlayerIdx) {
     document.body.appendChild(ghost);
     // Label
     var label = document.createElement('div');
-    label.style.cssText = 'position:fixed;z-index:601;left:50%;top:55%;transform:translateX(-50%);text-align:center;font-size:1.4em;font-weight:bold;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,0.8);opacity:0;animation:madmanLabel 1.3s ease-in-out forwards';
+    label.style.cssText = 'position:fixed;z-index:601;left:50%;top:55%;transform:translateX(-50%);text-align:center;font-size:1.4em;font-weight:bold;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,0.8);opacity:0;animation:madmanLabel 1.5s ease-in-out forwards';
     label.innerHTML = '<span style="color:'+tp.color+'">'+tp.name+'</span> <span style="color:#4ecdc4">+1 PZ (odwet!)</span>';
     document.body.appendChild(label);
     setTimeout(function(){ if(ghost.parentNode)ghost.remove(); if(label.parentNode)label.remove(); }, 1400);
@@ -4127,11 +4127,11 @@ function updateControl(nodeId) {
     const p = G.players[ctrl];
     if (hasFullControl(node, ctrl) && node.fullControlBonus?.influence) {
       G.influence += node.fullControlBonus.influence;
-      showFloatingText('+'+node.fullControlBonus.influence+' 💎 pełna kontrola '+node.name, '#ffd700');
+      showFloatingText('+'+node.fullControlBonus.influence+' 💎 pełna kontrola '+node.name, p.color);
       logAction(`<span style="color:${p.color}">${p.name}</span>: +${node.fullControlBonus.influence}💎 pełna kontrola ${node.name}`);
     } else if (node.controlBonus?.influence) {
       G.influence += node.controlBonus.influence;
-      showFloatingText('+'+node.controlBonus.influence+' 💎 kontrola '+node.name, '#ffd700');
+      showFloatingText('+'+node.controlBonus.influence+' 💎 kontrola '+node.name, p.color);
       logAction(`<span style="color:${p.color}">${p.name}</span>: +${node.controlBonus.influence}💎 kontrola ${node.name}`);
     }
   }
@@ -4276,7 +4276,7 @@ function _endTurnContinue(p, pi) {
   }
   G.currentPlayer = (G.currentPlayer+1) % G.players.length;
   if (G.currentPlayer===(G.firstPlayer||0)) G.round++;
-  if (G.endTriggered && G.currentPlayer===(G.firstPlayer||0)) { G.gameOver=true; render(); showFinalScores(); return; }
+  if (G.endTriggered && G.currentPlayer===(G.firstPlayer||0)) { G.gameOver=true; if(isOnline&&isHost)broadcastState(); render(); showFinalScores(); return; }
   saveTurnStart();
   showTransition();
   if(isOnline && isHost) broadcastState();
@@ -6624,14 +6624,14 @@ function animateMadman(card, senderIdx, targetIdx) {
     var sender = G.players[senderIdx];
     var target = G.players[targetIdx];
     var label = document.createElement('div');
-    label.style.cssText = 'position:fixed;z-index:601;left:50%;top:28%;transform:translateX(-50%);text-align:center;font-size:1.4em;font-weight:bold;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,0.8);opacity:0;animation:madmanLabel 1.3s ease-in-out forwards';
+    label.style.cssText = 'position:fixed;z-index:601;left:50%;top:28%;transform:translateX(-50%);text-align:center;font-size:1.4em;font-weight:bold;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,0.8);opacity:0;animation:madmanLabel 1.5s ease-in-out forwards';
     label.innerHTML = '<span style="color:'+sender.color+'">'+sender.name+'</span> <span style="color:#e94560">podrzuci\u0142 Wyrzutka</span> <span style="color:'+target.color+'">'+target.name+'</span>';
     document.body.appendChild(label);
-    setTimeout(function() { if(label.parentNode) label.remove(); }, 1400);
+    setTimeout(function() { if(label.parentNode) label.remove(); }, 1600);
   }
   if (window.SOUND_GROUPS.madman && window.SOUND_GROUPS.madman.length) playGroupSound('madman');
   else playSound('madman');
-  setTimeout(function() { if(ghost.parentNode) ghost.remove(); }, 1400);
+  setTimeout(function() { if(ghost.parentNode) ghost.remove(); }, 1600);
 }
 
 
@@ -6662,14 +6662,14 @@ function animatePoisonedMinion(card, senderIdx, targetIdx) {
     var sender = G.players[senderIdx];
     var target = G.players[targetIdx];
     var label = document.createElement('div');
-    label.style.cssText = 'position:fixed;z-index:601;left:50%;top:28%;transform:translateX(-50%);text-align:center;font-size:1.4em;font-weight:bold;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,0.8);opacity:0;animation:madmanLabel 1.3s ease-in-out forwards';
+    label.style.cssText = 'position:fixed;z-index:601;left:50%;top:28%;transform:translateX(-50%);text-align:center;font-size:1.4em;font-weight:bold;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,0.8);opacity:0;animation:madmanLabel 1.5s ease-in-out forwards';
     label.innerHTML = '<span style="color:'+sender.color+'">'+sender.name+'</span> <span style="color:#b44dff">zatruwa</span> <span style="color:'+target.color+'">'+target.name+'</span>';
     document.body.appendChild(label);
-    setTimeout(function() { if(label.parentNode) label.remove(); }, 1400);
+    setTimeout(function() { if(label.parentNode) label.remove(); }, 1600);
   }
   if (window.SOUND_GROUPS.poison && window.SOUND_GROUPS.poison.length) playGroupSound('poison');
   else playSound('poison');
-  setTimeout(function() { if(ghost.parentNode) ghost.remove(); }, 1400);
+  setTimeout(function() { if(ghost.parentNode) ghost.remove(); }, 1600);
 }
 function showTurnBanner(playerName, color) {
   var old = document.getElementById('turn-banner');
@@ -6792,7 +6792,7 @@ function animatePromoteDeck(card) {
     ghost.textContent = (typeof card === 'object') ? card.name : card;
   }
   document.body.appendChild(ghost);
-  setTimeout(function() { if(ghost.parentNode) ghost.remove(); }, 1400);
+  setTimeout(function() { if(ghost.parentNode) ghost.remove(); }, 1600);
 }
 
 function animatePromote(card, sourceEl) {
@@ -7213,14 +7213,16 @@ const _local = {
 function netWrap(name, fn) {
   return function() {
     var args = Array.prototype.slice.call(arguments);
-    if (isOnline && G && G.phase === 'play' && G.currentPlayer !== myPlayerId && name !== 'setupDeploy') return;
-    if (isOnline && G && G.phase === 'setup_deploy' && G.currentPlayer !== myPlayerId) return;
+    if (isOnline && G && G.phase === 'play' && G.currentPlayer !== myPlayerId && name !== 'setupDeploy' && !(isHost && typeof BOT_PLAYERS!=='undefined' && BOT_PLAYERS[G.currentPlayer])) return;
+    if (isOnline && G && G.phase === 'setup_deploy' && G.currentPlayer !== myPlayerId && !(isHost && typeof BOT_PLAYERS!=='undefined' && BOT_PLAYERS[G.currentPlayer])) return;
     if (isOnline && !isHost && roomRef) {
       // Send action to host via Firebase
       roomRef.child('clientAction').set({name: name, args: args, t: Date.now()});
-      // Also execute locally for animations/sounds
-      _skipNextSnd = true;
-      fn.apply(null, args);
+      // Execute locally for animations/sounds (but not state-changing actions)
+      if (name !== 'endTurn' && name !== 'resetTurn' && name !== 'revealDrawnCard' && name !== 'revealFocusCard' && name !== 'revealMarketCard' && name !== 'revealAllCards') {
+        _skipNextSnd = true;
+        fn.apply(null, args);
+      }
       return;
     }
     fn.apply(null, args);
