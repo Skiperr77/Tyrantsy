@@ -1666,7 +1666,18 @@ function setupDeploy(nodeId) {
     G.currentPlayer = G.setupDeployOrder[G.setupDeployIdx];
   }
   render();
-  if(typeof botTakeTurn==='function'&&typeof isBotTurn==='function'&&isBotTurn())setTimeout(botTakeTurn,500);
+  // Auto-deploy for bot in setup_deploy
+  if (G.phase==='setup_deploy' && typeof BOT_PLAYERS!=='undefined' && BOT_PLAYERS[G.currentPlayer]) {
+    setTimeout(function() {
+      var startCities = G.board.filter(function(n){return n.nodeType==='city'&&n.starting&&n.slots.some(function(s){return s.owner===null;});});
+      if (startCities.length > 0) {
+        var city = startCities[Math.floor(Math.random()*startCities.length)];
+        setupDeploy(city.id);
+      }
+    }, 600);
+  } else if(typeof botTakeTurn==='function'&&typeof isBotTurn==='function'&&isBotTurn()) {
+    setTimeout(botTakeTurn,500);
+  }
 }
 
 // --- CARD PLAY ---
