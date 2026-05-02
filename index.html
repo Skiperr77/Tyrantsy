@@ -6243,6 +6243,15 @@ document.getElementById('btn-start').addEventListener('click', () => {
   }
 
   startGameWithDecks([]);
+  // Init bots (works for both local and online)
+  if (typeof BOT_PLAYERS !== 'undefined') {
+    BOT_PLAYERS = {};
+    if (typeof _botReady !== 'undefined' && _botReady) {
+      document.querySelectorAll('.bot-player-chk').forEach(function(chk) {
+        if (chk.checked) addBot(parseInt(chk.dataset.idx));
+      });
+    }
+  }
 });
 
 function startGameWithDecks(selectedDecks) {
